@@ -1,0 +1,5 @@
+# Copiar estas líneas en las variables de entorno del servidor (SiteGround).
+# No incluyas el # ni esta explicación.
+
+WEBHOOK_SECRET=c9f909336cd195eedaeb4c336ac6110ca43e1a0c8703cd6e57de9a71f8a72a47
+DATABASE_URL=file:./prisma/dev.db

@@ -1,0 +1,46 @@
+@page {
+  size: 62mm 30mm;
+  margin: 2mm;
+}
+
+@media print {
+  body {
+    margin: 0;
+    padding: 0;
+    background: white;
+    color: black;
+  }
+  .label-page {
+    width: 58mm;
+    height: 26mm;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10pt;
+    font-weight: 600;
+    text-align: center;
+    overflow: hidden;
+  }
+  .label-content {
+    max-width: 100%;
+    word-break: break-word;
+  }
+}
+
+@media screen {
+  .label-page {
+    width: 62mm;
+    height: 30mm;
+    border: 1px solid #334155;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10pt;
+    font-weight: 600;
+    padding: 4px;
+    background: #fff;
+    color: #0f172a;
+  }
+}
