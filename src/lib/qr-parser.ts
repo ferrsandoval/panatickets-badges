@@ -1,11 +1,11 @@
 import { createHash } from "crypto";
 
 /**
- * Extrae el valor de "Name:" del texto multilínea del QR.
+ * Extrae el valor de "Name:" o "Nombre:" del texto multilínea del QR (case insensitive).
  */
 export function parseNameFromQrText(qrText: string): string | null {
   if (!qrText || typeof qrText !== "string") return null;
-  const match = qrText.match(/^\s*Name:\s*(.+)$/m);
+  const match = qrText.match(/^\s*(?:Name|Nombre):\s*(.+)$/im);
   return match ? match[1].trim() : null;
 }
 

@@ -15,6 +15,14 @@ function validateToken(token: string | null): boolean {
   return token === WEBHOOK_SECRET && !!token;
 }
 
+/** GET: comprobar que el webhook está vivo (CodeREADr no usa GET). */
+export async function GET() {
+  return NextResponse.json({
+    ok: true,
+    message: "Webhook activo. CodeREADr debe enviar POST con el contenido del QR.",
+  });
+}
+
 export async function POST(req: NextRequest) {
   if (!validateToken(getToken(req))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -46,7 +54,11 @@ export async function POST(req: NextRequest) {
 
   if (!name) {
     return NextResponse.json(
-      { error: "No se pudo extraer Name del QR", received: qrText.slice(0, 200) },
+      {
+        error: "No se pudo extraer Name del QR",
+        received: qrText.slice(0, 300),
+        bodyKeys: Object.keys(body),
+      },
       { status: 400 }
     );
   }
