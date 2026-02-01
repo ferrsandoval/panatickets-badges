@@ -24,6 +24,40 @@ export function parseNameFromQrText(qrText: string): string | null {
 }
 
 /**
+ * Extrae un campo del texto del QR por claves posibles.
+ * Acepta: "Key: X", "Key='X'", "Key=\"X\"", Key=valor|...
+ */
+function parseFieldFromQrText(qrText: string, keys: string[]): string | null {
+  if (!qrText || typeof qrText !== "string") return null;
+  const s = qrText.trim();
+  const keysEsc = keys.join("|");
+  const keysRegex = new RegExp(`(?:${keysEsc})`, "i");
+
+  let match = s.match(new RegExp(`^\\s*(?:${keysEsc})\\s*:\\s*(.+)$`, "im"));
+  if (match) return match[1].trim();
+
+  match = s.match(new RegExp(`(?:${keysEsc})\\s*=\\s*['"]([^'"]+)['"]`, "i"));
+  if (match) return match[1].trim();
+
+  match = s.match(new RegExp(`(?:${keysEsc})\\s*=\\s*([^|'\\n]+)`, "i"));
+  if (match) return match[1].trim();
+
+  return null;
+}
+
+export function parseEmpresaFromQrText(qrText: string): string | null {
+  return parseFieldFromQrText(qrText, ["Empresa", "Company"]);
+}
+
+export function parsePaisFromQrText(qrText: string): string | null {
+  return parseFieldFromQrText(qrText, ["País", "Pais", "Country"]);
+}
+
+export function parseFeriaFromQrText(qrText: string): string | null {
+  return parseFieldFromQrText(qrText, ["Feria", "Event"]);
+}
+
+/**
  * Hash del contenido para deduplicación cuando no hay scan_id.
  */
 export function contentHash(content: string): string {

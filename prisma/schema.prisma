@@ -12,6 +12,9 @@ model PrintJob {
   scanId      String?   @unique @map("scan_id")
   contentHash String?   @unique @map("content_hash")
   name        String
+  empresa     String?   @map("empresa")
+  pais        String?   @map("pais")
+  feria       String?   @map("feria")
   rawPayload  String?   @map("raw_payload")
   printedAt   DateTime? @map("printed_at")
   createdAt   DateTime  @default(now()) @map("created_at")

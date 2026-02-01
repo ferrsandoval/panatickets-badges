@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { parseNameFromQrText, contentHash } from "@/lib/qr-parser";
+import {
+  parseNameFromQrText,
+  parseEmpresaFromQrText,
+  parsePaisFromQrText,
+  parseFeriaFromQrText,
+  contentHash,
+} from "@/lib/qr-parser";
 
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 const WEBHOOK_SECRET_SHORT = process.env.WEBHOOK_SECRET_SHORT; // token corto por si CodeREADr corta la URL
@@ -54,6 +60,9 @@ export async function POST(req: NextRequest) {
     "";
 
   const name = parseNameFromQrText(qrText);
+  const empresa = parseEmpresaFromQrText(qrText) ?? undefined;
+  const pais = parsePaisFromQrText(qrText) ?? undefined;
+  const feria = parseFeriaFromQrText(qrText) ?? undefined;
 
   if (!name) {
     return NextResponse.json(
@@ -82,6 +91,9 @@ export async function POST(req: NextRequest) {
         scanId: scanId ?? undefined,
         contentHash: hash,
         name,
+        empresa,
+        pais,
+        feria,
         rawPayload: qrText.slice(0, 2000),
       },
     });

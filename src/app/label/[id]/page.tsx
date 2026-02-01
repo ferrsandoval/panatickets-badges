@@ -4,7 +4,13 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import "./label-print.css";
 
-type Job = { id: string; name: string };
+type Job = {
+  id: string;
+  name: string;
+  empresa?: string | null;
+  pais?: string | null;
+  feria?: string | null;
+};
 
 export default function LabelPage() {
   const params = useParams();
@@ -31,9 +37,20 @@ export default function LabelPage() {
   if (loading) return <div className="label-page">Cargando…</div>;
   if (!job) return <div className="label-page">No encontrado</div>;
 
+  const lines = [
+    job.name,
+    job.empresa,
+  ].filter(Boolean) as string[];
+
   return (
     <div className="label-page">
-      <div className="label-content">{job.name}</div>
+      <div className="label-content">
+        {lines.map((line, i) => (
+          <div key={i} className="label-line">
+            {line}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
