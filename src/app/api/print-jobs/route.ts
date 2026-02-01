@@ -9,6 +9,7 @@ export async function GET(req: Request) {
     const jobs = await prisma.printJob.findMany({
       where: onlyPending ? { printedAt: null } : undefined,
       orderBy: [{ printedAt: "asc" }, { createdAt: "desc" }],
+      select: { id: true, name: true, createdAt: true, printedAt: true },
     });
     return NextResponse.json(jobs);
   } catch (e) {

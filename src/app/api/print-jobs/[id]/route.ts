@@ -6,7 +6,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const job = await prisma.printJob.findUnique({ where: { id } });
+  const job = await prisma.printJob.findUnique({
+    where: { id },
+    select: { id: true, name: true, createdAt: true, printedAt: true },
+  });
   if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json(job);
 }
@@ -30,6 +33,7 @@ export async function PATCH(
   const job = await prisma.printJob.update({
     where: { id },
     data: { printedAt: new Date() },
+    select: { id: true, name: true, printedAt: true },
   });
   return NextResponse.json(job);
 }

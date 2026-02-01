@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import {
@@ -79,8 +80,8 @@ export async function POST(req: NextRequest) {
 
   try {
     const existing = scanId
-      ? await prisma.printJob.findUnique({ where: { scanId } })
-      : await prisma.printJob.findUnique({ where: { contentHash: hash } });
+      ? await prisma.printJob.findUnique({ where: { scanId }, select: { id: true } })
+      : await prisma.printJob.findUnique({ where: { contentHash: hash }, select: { id: true } });
 
     if (existing) {
       return NextResponse.json({ ok: true, duplicate: true, id: existing.id }, { status: 200 });
@@ -91,16 +92,34 @@ export async function POST(req: NextRequest) {
         scanId: scanId ?? undefined,
         contentHash: hash,
         name,
-        empresa,
-        pais,
-        feria,
         rawPayload: qrText.slice(0, 2000),
+        ...(empresa !== undefined && { empresa }),
+        ...(pais !== undefined && { pais }),
+        ...(feria !== undefined && { feria }),
       },
     });
 
     return NextResponse.json({ ok: true, id: job.id }, { status: 201 });
   } catch (e) {
     console.error("webhook codereadr error", e);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    const msg = e instanceof Error ? e.message : String(e);
+    if (msg.includes("empresa") || msg.includes("pais") || msg.includes("feria") || msg.includes("column")) {
+      try {
+        const id = randomUUID();
+        await prisma.$executeRawUnsafe(
+          `INSERT INTO print_jobs (id, scan_id, content_hash, name, raw_payload, created_at) VALUES ($1, $2, $3, $4, $5, NOW())`,
+          id,
+          scanId ?? null,
+          hash,
+          name,
+          qrText.slice(0, 2000)
+        );
+        return NextResponse.json({ ok: true, id }, { status: 201 });
+      } catch (e2) {
+        console.error("webhook codereadr create fallback error", e2);
+        return NextResponse.json({ error: "Internal error", detail: String(e2) }, { status: 500 });
+      }
+    }
+    return NextResponse.json({ error: "Internal error", detail: msg }, { status: 500 });
   }
 }
