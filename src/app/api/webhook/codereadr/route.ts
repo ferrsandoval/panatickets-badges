@@ -29,13 +29,15 @@ export async function POST(req: NextRequest) {
     body = Object.fromEntries(new URLSearchParams(text)) as Record<string, string>;
   }
 
-  const scanId = body.scan_id ?? body.scanId ?? body.scanid ?? null;
+  const scanId =
+    body.scan_id ?? body.scanId ?? body.scanid ?? body.EscanerID ?? body.escaner_id ?? null;
   const qrText =
     body.barcode_data ??
     body.scan_data ??
     body.data ??
     body.payload ??
     body.barcode ??
+    body.Barcode ??
     body.scan_value ??
     body.value ??
     "";
