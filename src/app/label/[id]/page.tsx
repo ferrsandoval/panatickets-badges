@@ -37,19 +37,10 @@ export default function LabelPage() {
   if (loading) return <div className="label-page">Cargando…</div>;
   if (!job) return <div className="label-page">No encontrado</div>;
 
-  const lines = [
-    job.name,
-    job.empresa,
-  ].filter(Boolean) as string[];
-
   return (
     <div className="label-page">
       <div className="label-content">
-        {lines.map((line, i) => (
-          <div key={i} className="label-line">
-            {line}
-          </div>
-        ))}
+        <div className="label-line">{job.name}</div>
       </div>
     </div>
   );
