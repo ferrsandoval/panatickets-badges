@@ -78,7 +78,8 @@ git push -u origin main
 2. Si ya habías hecho un deploy antes de añadir la DB, haz clic en los **tres puntos** del último deploy → **Redeploy**.
 3. Si es la primera vez, ve a **Code** o al inicio del proyecto y haz clic en **Deploy** (o haz un nuevo commit y push a GitHub para que se despliegue solo).
 4. Espera a que termine (1–2 minutos). Cuando veas **Ready**, haz clic en **Visit** para abrir la URL de Vercel (ej. `panatickets-badges-xxx.vercel.app`).
-5. Comprueba que la webapp carga y que el webhook responde (por ejemplo con un POST de prueba a `/api/webhook/codereadr?token=...`).
+5. **Crear tablas en la base de datos (solo la primera vez):** En tu PC, en la carpeta del proyecto, ejecuta `npx vercel env pull .env.local` (tras hacer `vercel link` si hace falta). Luego ejecuta `npx prisma db push`. Eso crea la tabla `print_jobs` en la base de Vercel. No hace falta volver a hacerlo.
+6. Comprueba que la webapp carga y que el webhook responde (por ejemplo con un POST de prueba a `/api/webhook/codereadr?token=...`).
 
 ---
 
