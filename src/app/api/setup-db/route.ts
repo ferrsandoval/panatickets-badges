@@ -37,7 +37,12 @@ export async function GET(req: NextRequest) {
       CREATE INDEX IF NOT EXISTS "print_jobs_printed_at_created_at_idx" ON "print_jobs"("printed_at", "created_at");
     `);
 
-    return NextResponse.json({ ok: true, message: "Tabla print_jobs creada o ya existía." });
+    // Añadir columnas empresa, pais, feria si no existen (PostgreSQL 9.5+)
+    await prisma.$executeRawUnsafe(`ALTER TABLE "print_jobs" ADD COLUMN IF NOT EXISTS "empresa" TEXT;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "print_jobs" ADD COLUMN IF NOT EXISTS "pais" TEXT;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "print_jobs" ADD COLUMN IF NOT EXISTS "feria" TEXT;`);
+
+    return NextResponse.json({ ok: true, message: "Tabla print_jobs creada o actualizada (empresa, pais, feria)." });
   } catch (e) {
     console.error("setup-db error", e);
     return NextResponse.json({ error: String(e) }, { status: 500 });
