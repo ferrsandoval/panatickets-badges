@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { parseNameFromQrText, contentHash } from "@/lib/qr-parser";
 
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
+const WEBHOOK_SECRET_SHORT = process.env.WEBHOOK_SECRET_SHORT; // token corto por si CodeREADr corta la URL
 
 function getToken(req: NextRequest): string | null {
   const auth = req.headers.get("authorization");
@@ -11,8 +12,10 @@ function getToken(req: NextRequest): string | null {
 }
 
 function validateToken(token: string | null): boolean {
-  if (!WEBHOOK_SECRET) return true;
-  return token === WEBHOOK_SECRET && !!token;
+  if (!token) return false;
+  if (WEBHOOK_SECRET && token === WEBHOOK_SECRET) return true;
+  if (WEBHOOK_SECRET_SHORT && token === WEBHOOK_SECRET_SHORT) return true;
+  return false;
 }
 
 /** GET: comprobar que el webhook está vivo (CodeREADr no usa GET). */
