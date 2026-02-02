@@ -38,20 +38,20 @@
   }
   /* Nombre: mayúsculas, negrita */
   .label-line.label-name {
-    font-size: 13pt;
+    font-size: 20pt;
     font-weight: 700;
     text-transform: uppercase;
   }
   /* Empresa: mayúsculas, regular */
   .label-line.label-empresa {
-    font-size: 10pt;
+    font-size: 15pt;
     font-weight: 400;
     text-transform: uppercase;
   }
-  /* Teléfono y Email: más pequeños */
+  /* Teléfono y Email */
   .label-line.label-telefono,
   .label-line.label-email {
-    font-size: 9pt;
+    font-size: 12pt;
     font-weight: 400;
   }
 }
@@ -81,18 +81,18 @@
     line-height: 1.2;
   }
   .label-line.label-name {
-    font-size: 13pt;
+    font-size: 20pt;
     font-weight: 700;
     text-transform: uppercase;
   }
   .label-line.label-empresa {
-    font-size: 10pt;
+    font-size: 15pt;
     font-weight: 400;
     text-transform: uppercase;
   }
   .label-line.label-telefono,
   .label-line.label-email {
-    font-size: 9pt;
+    font-size: 12pt;
     font-weight: 400;
   }
 }
