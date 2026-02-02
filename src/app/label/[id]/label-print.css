@@ -1,6 +1,7 @@
+/* Área de impresión 87mm x 68mm, orientación vertical (68mm ancho x 87mm alto) */
 @page {
-  size: 62mm 30mm;
-  margin: 2mm;
+  size: 68mm 87mm;
+  margin: 3mm;
 }
 
 @media print {
@@ -11,16 +12,13 @@
     color: black;
   }
   .label-page {
-    width: 58mm;
-    height: 26mm;
-    padding: 2mm;
+    width: 62mm;
+    height: 81mm;
+    padding: 3mm;
     margin: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 8pt;
-    font-weight: 600;
-    text-align: center;
     overflow: hidden;
   }
   .label-content {
@@ -28,35 +26,58 @@
     word-break: break-word;
     display: flex;
     flex-direction: column;
-    gap: 1mm;
+    gap: 4mm;
     justify-content: center;
+    align-items: center;
+    text-align: center;
   }
   .label-line {
-    line-height: 1.2;
+    line-height: 1.25;
+  }
+  /* Nombre: mayúsculas, negrita, tamaño grande */
+  .label-line.label-name {
+    font-size: 16pt;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  /* Empresa: mayúsculas, regular, tamaño menor */
+  .label-line.label-empresa {
+    font-size: 11pt;
+    font-weight: 400;
+    text-transform: uppercase;
   }
 }
 
 @media screen {
   .label-page {
-    width: 62mm;
-    height: 30mm;
+    width: 68mm;
+    height: 87mm;
     border: 1px solid #334155;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 8pt;
-    font-weight: 600;
-    padding: 4px;
+    padding: 8px;
     background: #fff;
     color: #0f172a;
   }
   .label-content {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 6px;
     align-items: center;
+    text-align: center;
   }
   .label-line {
-    line-height: 1.2;
+    line-height: 1.25;
+  }
+  .label-line.label-name {
+    font-size: 16pt;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .label-line.label-empresa {
+    font-size: 11pt;
+    font-weight: 400;
+    text-transform: uppercase;
   }
 }
