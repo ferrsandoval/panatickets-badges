@@ -173,29 +173,48 @@ export async function POST(req: NextRequest) {
     console.error("webhook codereadr error", e);
     const msg = e instanceof Error ? e.message : String(e);
     if (msg.includes("empresa") || msg.includes("pais") || msg.includes("feria") || msg.includes("telefono") || msg.includes("email") || msg.includes("column")) {
+      const id = randomUUID();
+      const rawPayload = qrText.slice(0, 2000);
       try {
-        const id = randomUUID();
         await prisma.$executeRawUnsafe(
-          `INSERT INTO print_jobs (id, scan_id, content_hash, name, raw_payload, created_at) VALUES ($1, $2, $3, $4, $5, NOW())`,
+          `INSERT INTO print_jobs (id, scan_id, content_hash, name, empresa, telefono, email, raw_payload, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())`,
           id,
           scanId ?? null,
           hash,
           nameTrimmed,
-          qrText.slice(0, 2000)
+          empresa ?? null,
+          telefono ?? null,
+          email ?? null,
+          rawPayload
         );
         return NextResponse.json(
-          {
-            ok: true,
-            id,
-            parsed: { name: nameTrimmed, empresa, telefono, email },
-            qrPreview: qrText.slice(0, 150),
-            warning: "Tabla sin columnas telefono/email. Ejecuta GET /api/setup-db?token=... para añadirlas.",
-          },
+          { ok: true, id, parsed: { name: nameTrimmed, empresa, telefono, email }, qrPreview: qrText.slice(0, 150) },
           { status: 201 }
         );
-      } catch (e2) {
-        console.error("webhook codereadr create fallback error", e2);
-        return NextResponse.json({ error: "Internal error", detail: String(e2) }, { status: 500 });
+      } catch (_e2) {
+        try {
+          await prisma.$executeRawUnsafe(
+            `INSERT INTO print_jobs (id, scan_id, content_hash, name, raw_payload, created_at) VALUES ($1, $2, $3, $4, $5, NOW())`,
+            id,
+            scanId ?? null,
+            hash,
+            nameTrimmed,
+            rawPayload
+          );
+          return NextResponse.json(
+            {
+              ok: true,
+              id,
+              parsed: { name: nameTrimmed, empresa, telefono, email },
+              qrPreview: qrText.slice(0, 150),
+              warning: "Tabla sin columnas empresa/telefono/email. Ejecuta GET /api/setup-db?token=... para añadirlas.",
+            },
+            { status: 201 }
+          );
+        } catch (e3) {
+          console.error("webhook codereadr create fallback error", e3);
+          return NextResponse.json({ error: "Internal error", detail: String(e3) }, { status: 500 });
+        }
       }
     }
     return NextResponse.json({ error: "Internal error", detail: msg }, { status: 500 });
