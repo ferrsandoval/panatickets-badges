@@ -8,8 +8,8 @@ type Job = {
   id: string;
   name: string;
   empresa?: string | null;
-  pais?: string | null;
-  feria?: string | null;
+  telefono?: string | null;
+  email?: string | null;
 };
 
 export default function LabelPage() {
@@ -37,9 +37,12 @@ export default function LabelPage() {
   if (loading) return <div className="label-page">Cargando…</div>;
   if (!job) return <div className="label-page">No encontrado</div>;
 
-  const nameLine = job.name ? { text: job.name, className: "label-name" } : null;
-  const empresaLine = job.empresa ? { text: job.empresa, className: "label-empresa" } : null;
-  const lines = [nameLine, empresaLine].filter(Boolean) as { text: string; className: string }[];
+  const lines = [
+    job.name && { text: job.name, className: "label-name" },
+    job.empresa && { text: job.empresa, className: "label-empresa" },
+    job.telefono && { text: job.telefono, className: "label-telefono" },
+    job.email && { text: job.email, className: "label-email" },
+  ].filter(Boolean) as { text: string; className: string }[];
 
   return (
     <div className="label-page">

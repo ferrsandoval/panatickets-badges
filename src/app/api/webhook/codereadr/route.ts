@@ -6,6 +6,8 @@ import {
   parseEmpresaFromQrText,
   parsePaisFromQrText,
   parseFeriaFromQrText,
+  parseTelefonoFromQrText,
+  parseEmailFromQrText,
   contentHash,
 } from "@/lib/qr-parser";
 
@@ -64,6 +66,8 @@ export async function POST(req: NextRequest) {
   const empresa = parseEmpresaFromQrText(qrText) ?? undefined;
   const pais = parsePaisFromQrText(qrText) ?? undefined;
   const feria = parseFeriaFromQrText(qrText) ?? undefined;
+  const telefono = parseTelefonoFromQrText(qrText) ?? undefined;
+  const email = parseEmailFromQrText(qrText) ?? undefined;
 
   if (!name) {
     return NextResponse.json(
@@ -96,6 +100,8 @@ export async function POST(req: NextRequest) {
         ...(empresa !== undefined && { empresa }),
         ...(pais !== undefined && { pais }),
         ...(feria !== undefined && { feria }),
+        ...(telefono !== undefined && { telefono }),
+        ...(email !== undefined && { email }),
       },
     });
 
@@ -103,7 +109,7 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     console.error("webhook codereadr error", e);
     const msg = e instanceof Error ? e.message : String(e);
-    if (msg.includes("empresa") || msg.includes("pais") || msg.includes("feria") || msg.includes("column")) {
+    if (msg.includes("empresa") || msg.includes("pais") || msg.includes("feria") || msg.includes("telefono") || msg.includes("email") || msg.includes("column")) {
       try {
         const id = randomUUID();
         await prisma.$executeRawUnsafe(

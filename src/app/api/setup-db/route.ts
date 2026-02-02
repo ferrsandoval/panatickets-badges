@@ -41,8 +41,10 @@ export async function GET(req: NextRequest) {
     await prisma.$executeRawUnsafe(`ALTER TABLE "print_jobs" ADD COLUMN IF NOT EXISTS "empresa" TEXT;`);
     await prisma.$executeRawUnsafe(`ALTER TABLE "print_jobs" ADD COLUMN IF NOT EXISTS "pais" TEXT;`);
     await prisma.$executeRawUnsafe(`ALTER TABLE "print_jobs" ADD COLUMN IF NOT EXISTS "feria" TEXT;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "print_jobs" ADD COLUMN IF NOT EXISTS "telefono" TEXT;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "print_jobs" ADD COLUMN IF NOT EXISTS "email" TEXT;`);
 
-    return NextResponse.json({ ok: true, message: "Tabla print_jobs creada o actualizada (empresa, pais, feria)." });
+    return NextResponse.json({ ok: true, message: "Tabla print_jobs creada o actualizada (empresa, pais, feria, telefono, email)." });
   } catch (e) {
     console.error("setup-db error", e);
     return NextResponse.json({ error: String(e) }, { status: 500 });

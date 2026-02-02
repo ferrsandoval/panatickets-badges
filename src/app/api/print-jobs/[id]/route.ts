@@ -6,18 +6,19 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  let job: { id: string; name: string; empresa?: string | null; createdAt: Date; printedAt: Date | null } | null = null;
+  type JobRow = { id: string; name: string; empresa?: string | null; telefono?: string | null; email?: string | null; createdAt: Date; printedAt: Date | null };
+  let job: JobRow | null = null;
   try {
     job = await prisma.printJob.findUnique({
       where: { id },
-      select: { id: true, name: true, empresa: true, createdAt: true, printedAt: true },
+      select: { id: true, name: true, empresa: true, telefono: true, email: true, createdAt: true, printedAt: true },
     });
   } catch {
     job = await prisma.printJob.findUnique({
       where: { id },
       select: { id: true, name: true, createdAt: true, printedAt: true },
     });
-    if (job) job = { ...job, empresa: null };
+    if (job) job = { ...job, empresa: null, telefono: null, email: null };
   }
   if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json(job);

@@ -57,6 +57,14 @@ export function parseFeriaFromQrText(qrText: string): string | null {
   return parseFieldFromQrText(qrText, ["Feria", "Event"]);
 }
 
+export function parseTelefonoFromQrText(qrText: string): string | null {
+  return parseFieldFromQrText(qrText, ["Teléfono", "Telefono", "Phone", "Tel"]);
+}
+
+export function parseEmailFromQrText(qrText: string): string | null {
+  return parseFieldFromQrText(qrText, ["Email", "Correo", "E-mail"]);
+}
+
 /**
  * Hash del contenido para deduplicación cuando no hay scan_id.
  */

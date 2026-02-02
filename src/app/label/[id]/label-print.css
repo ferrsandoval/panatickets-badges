@@ -26,7 +26,7 @@
     word-break: break-word;
     display: flex;
     flex-direction: column;
-    gap: 4mm;
+    gap: 2mm;
     justify-content: center;
     align-items: center;
     text-align: center;
@@ -34,19 +34,25 @@
     transform-origin: center center;
   }
   .label-line {
-    line-height: 1.25;
+    line-height: 1.2;
   }
-  /* Nombre: mayúsculas, negrita, tamaño grande */
+  /* Nombre: mayúsculas, negrita */
   .label-line.label-name {
-    font-size: 16pt;
+    font-size: 13pt;
     font-weight: 700;
     text-transform: uppercase;
   }
-  /* Empresa: mayúsculas, regular, tamaño menor */
+  /* Empresa: mayúsculas, regular */
   .label-line.label-empresa {
-    font-size: 11pt;
+    font-size: 10pt;
     font-weight: 400;
     text-transform: uppercase;
+  }
+  /* Teléfono y Email: más pequeños */
+  .label-line.label-telefono,
+  .label-line.label-email {
+    font-size: 9pt;
+    font-weight: 400;
   }
 }
 
@@ -72,16 +78,21 @@
     transform-origin: center center;
   }
   .label-line {
-    line-height: 1.25;
+    line-height: 1.2;
   }
   .label-line.label-name {
-    font-size: 16pt;
+    font-size: 13pt;
     font-weight: 700;
     text-transform: uppercase;
   }
   .label-line.label-empresa {
-    font-size: 11pt;
+    font-size: 10pt;
     font-weight: 400;
     text-transform: uppercase;
+  }
+  .label-line.label-telefono,
+  .label-line.label-email {
+    font-size: 9pt;
+    font-weight: 400;
   }
 }
