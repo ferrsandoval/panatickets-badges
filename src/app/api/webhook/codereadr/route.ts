@@ -105,7 +105,15 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({ ok: true, id: job.id }, { status: 201 });
+    return NextResponse.json(
+      {
+        ok: true,
+        id: job.id,
+        parsed: { name, empresa, telefono, email },
+        qrPreview: qrText.slice(0, 150),
+      },
+      { status: 201 }
+    );
   } catch (e) {
     console.error("webhook codereadr error", e);
     const msg = e instanceof Error ? e.message : String(e);
@@ -120,7 +128,16 @@ export async function POST(req: NextRequest) {
           name,
           qrText.slice(0, 2000)
         );
-        return NextResponse.json({ ok: true, id }, { status: 201 });
+        return NextResponse.json(
+          {
+            ok: true,
+            id,
+            parsed: { name, empresa, telefono, email },
+            qrPreview: qrText.slice(0, 150),
+            warning: "Tabla sin columnas telefono/email. Ejecuta GET /api/setup-db?token=... para añadirlas.",
+          },
+          { status: 201 }
+        );
       } catch (e2) {
         console.error("webhook codereadr create fallback error", e2);
         return NextResponse.json({ error: "Internal error", detail: String(e2) }, { status: 500 });

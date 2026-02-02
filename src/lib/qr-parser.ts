@@ -58,7 +58,7 @@ export function parseFeriaFromQrText(qrText: string): string | null {
 }
 
 export function parseTelefonoFromQrText(qrText: string): string | null {
-  return parseFieldFromQrText(qrText, ["Teléfono", "Telefono", "Phone", "Tel"]);
+  return parseFieldFromQrText(qrText, ["Teléfono", "Telefono", "Celular", "Phone", "Tel"]);
 }
 
 export function parseEmailFromQrText(qrText: string): string | null {
