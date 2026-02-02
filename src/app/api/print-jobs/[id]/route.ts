@@ -14,11 +14,19 @@ export async function GET(
       select: { id: true, name: true, empresa: true, telefono: true, email: true, createdAt: true, printedAt: true },
     });
   } catch {
-    job = await prisma.printJob.findUnique({
-      where: { id },
-      select: { id: true, name: true, createdAt: true, printedAt: true },
-    });
-    if (job) job = { ...job, empresa: null, telefono: null, email: null };
+    try {
+      job = await prisma.printJob.findUnique({
+        where: { id },
+        select: { id: true, name: true, empresa: true, createdAt: true, printedAt: true },
+      });
+      if (job) job = { ...job, telefono: null, email: null };
+    } catch {
+      job = await prisma.printJob.findUnique({
+        where: { id },
+        select: { id: true, name: true, createdAt: true, printedAt: true },
+      });
+      if (job) job = { ...job, empresa: null, telefono: null, email: null };
+    }
   }
   if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json(job);
