@@ -1,6 +1,6 @@
-/* Área de impresión 87mm x 68mm, orientación vertical (68mm ancho x 87mm alto) */
+/* Área de impresión 87mm (ancho) x 68mm (alto) */
 @page {
-  size: 68mm 87mm;
+  size: 87mm 68mm;
   margin: 3mm;
 }
 
@@ -12,8 +12,8 @@
     color: black;
   }
   .label-page {
-    width: 62mm;
-    height: 81mm;
+    width: 81mm;
+    height: 62mm;
     padding: 3mm;
     margin: 0;
     display: flex;
@@ -30,8 +30,6 @@
     justify-content: center;
     align-items: center;
     text-align: center;
-    transform: rotate(-90deg);
-    transform-origin: center center;
   }
   .label-line {
     line-height: 1.25;
@@ -52,8 +50,8 @@
 
 @media screen {
   .label-page {
-    width: 68mm;
-    height: 87mm;
+    width: 87mm;
+    height: 68mm;
     border: 1px solid #334155;
     display: flex;
     align-items: center;
@@ -68,8 +66,6 @@
     gap: 6px;
     align-items: center;
     text-align: center;
-    transform: rotate(-90deg);
-    transform-origin: center center;
   }
   .label-line {
     line-height: 1.25;
