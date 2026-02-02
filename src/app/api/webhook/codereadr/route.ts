@@ -27,6 +27,40 @@ function validateToken(token: string | null): boolean {
   return false;
 }
 
+function getString(obj: Record<string, unknown>, ...keys: string[]): string | null {
+  for (const k of keys) {
+    const v = obj[k];
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  return null;
+}
+
+/** Obtiene el texto del QR desde el body; acepta claves conocidas y busca cualquier valor que parezca formato Nombre='...'|... */
+function getQrTextFromBody(body: Record<string, unknown>): string {
+  const knownKeys = [
+    "barcode_data", "BarcodeData", "barcodeData",
+    "scan_data", "scanData", "ScanData",
+    "data", "payload", "barcode", "Barcode",
+    "scan_value", "scanValue", "value", "content", "qr", "QR",
+  ];
+  for (const k of knownKeys) {
+    const v = body[k];
+    if (typeof v === "string" && v.length >= 15) return v.trim();
+    if (v && typeof v === "object" && !Array.isArray(v)) {
+      const inner = getQrTextFromBody(v as Record<string, unknown>);
+      if (inner.length >= 15) return inner;
+    }
+  }
+  for (const v of Object.values(body)) {
+    if (typeof v === "string" && v.length >= 15 && (v.includes("Nombre=") || v.includes("Name="))) return v.trim();
+    if (v && typeof v === "object" && !Array.isArray(v)) {
+      const inner = getQrTextFromBody(v as Record<string, unknown>);
+      if (inner.length >= 15) return inner;
+    }
+  }
+  return "";
+}
+
 /** GET: comprobar que el webhook está vivo (CodeREADr no usa GET). */
 export async function GET() {
   return NextResponse.json({
@@ -40,27 +74,38 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: Record<string, string>;
+  let body: Record<string, unknown>;
   const contentType = req.headers.get("content-type") ?? "";
   if (contentType.includes("application/json")) {
-    body = (await req.json()) as Record<string, string>;
+    body = (await req.json()) as Record<string, unknown>;
   } else {
     const text = await req.text();
-    body = Object.fromEntries(new URLSearchParams(text)) as Record<string, string>;
+    body = Object.fromEntries(new URLSearchParams(text)) as Record<string, unknown>;
   }
 
-  const scanId =
-    body.scan_id ?? body.scanId ?? body.scanid ?? body.EscanerID ?? body.escaner_id ?? null;
-  const qrText =
-    body.barcode_data ??
-    body.scan_data ??
-    body.data ??
-    body.payload ??
-    body.barcode ??
-    body.Barcode ??
-    body.scan_value ??
-    body.value ??
-    "";
+  const scanId = getString(body, "scan_id", "scanId", "scanid", "EscanerID", "escaner_id") ?? null;
+  const qrText = getQrTextFromBody(body);
+
+  if (!qrText || qrText.length < 15) {
+    return NextResponse.json(
+      {
+        error: "No se recibió contenido del QR o es demasiado corto",
+        bodyKeys: Object.keys(body),
+        hint: "CodeREADr debe enviar el texto del QR en barcode_data, Barcode, data o similar.",
+      },
+      { status: 400 }
+    );
+  }
+  if (!qrText.includes("Nombre=") && !qrText.includes("Name=")) {
+    return NextResponse.json(
+      {
+        error: "El contenido del QR no tiene formato esperado (Nombre='...'|Empresa='...'|...)",
+        received: qrText.slice(0, 200),
+        bodyKeys: Object.keys(body),
+      },
+      { status: 400 }
+    );
+  }
 
   const name = parseNameFromQrText(qrText);
   const empresa = parseEmpresaFromQrText(qrText) ?? undefined;
@@ -69,12 +114,22 @@ export async function POST(req: NextRequest) {
   const telefono = parseTelefonoFromQrText(qrText) ?? undefined;
   const email = parseEmailFromQrText(qrText) ?? undefined;
 
-  if (!name) {
+  if (!name || name.trim().length < 2) {
     return NextResponse.json(
       {
-        error: "No se pudo extraer Name del QR",
+        error: "No se pudo extraer un nombre válido del QR",
         received: qrText.slice(0, 300),
         bodyKeys: Object.keys(body),
+      },
+      { status: 400 }
+    );
+  }
+  const nameTrimmed = name.trim();
+  if (/^[\d\s\-\(\)]+$/.test(nameTrimmed)) {
+    return NextResponse.json(
+      {
+        error: "El nombre extraído no parece válido (solo números/símbolos)",
+        received: qrText.slice(0, 200),
       },
       { status: 400 }
     );
@@ -95,7 +150,7 @@ export async function POST(req: NextRequest) {
       data: {
         scanId: scanId ?? undefined,
         contentHash: hash,
-        name,
+        name: nameTrimmed,
         rawPayload: qrText.slice(0, 2000),
         ...(empresa !== undefined && { empresa }),
         ...(pais !== undefined && { pais }),
@@ -105,11 +160,11 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json(
+        return NextResponse.json(
       {
         ok: true,
         id: job.id,
-        parsed: { name, empresa, telefono, email },
+        parsed: { name: nameTrimmed, empresa, telefono, email },
         qrPreview: qrText.slice(0, 150),
       },
       { status: 201 }
@@ -125,14 +180,14 @@ export async function POST(req: NextRequest) {
           id,
           scanId ?? null,
           hash,
-          name,
+          nameTrimmed,
           qrText.slice(0, 2000)
         );
         return NextResponse.json(
           {
             ok: true,
             id,
-            parsed: { name, empresa, telefono, email },
+            parsed: { name: nameTrimmed, empresa, telefono, email },
             qrPreview: qrText.slice(0, 150),
             warning: "Tabla sin columnas telefono/email. Ejecuta GET /api/setup-db?token=... para añadirlas.",
           },

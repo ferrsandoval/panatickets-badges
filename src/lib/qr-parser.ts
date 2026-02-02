@@ -20,6 +20,30 @@ export function parseNameFromQrText(qrText: string): string | null {
   match = s.match(/(?:Name|Nombre)\s*=\s*([^|'\n]+)/i);
   if (match) return match[1].trim();
 
+  // Fallback: buscar por segmentos Nombre='...'|...
+  const bySegment = findKeyValue(s, ["Nombre", "Name"]);
+  if (bySegment) return bySegment;
+
+  return null;
+}
+
+/**
+ * Busca un par clave=valor en el texto; devuelve el valor si la clave coincide (case-insensitive).
+ */
+function findKeyValue(qrText: string, keys: string[]): string | null {
+  if (!qrText || typeof qrText !== "string") return null;
+  const s = qrText.trim();
+  const parts = s.split("|");
+  for (const part of parts) {
+    const eq = part.indexOf("=");
+    if (eq <= 0) continue;
+    const key = part.slice(0, eq).trim();
+    const value = part.slice(eq + 1).trim();
+    if (!keys.some((k) => key.toLowerCase() === k.toLowerCase())) continue;
+    const quoted = value.match(/^['"]([^'"]*)['"]$/);
+    if (quoted) return quoted[1].trim();
+    if (value) return value.trim();
+  }
   return null;
 }
 
@@ -30,19 +54,18 @@ export function parseNameFromQrText(qrText: string): string | null {
 function parseFieldFromQrText(qrText: string, keys: string[]): string | null {
   if (!qrText || typeof qrText !== "string") return null;
   const s = qrText.trim();
-  const keysEsc = keys.join("|");
-  const keysRegex = new RegExp(`(?:${keysEsc})`, "i");
+  const keysEsc = keys.map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
 
   let match = s.match(new RegExp(`^\\s*(?:${keysEsc})\\s*:\\s*(.+)$`, "im"));
   if (match) return match[1].trim();
 
-  match = s.match(new RegExp(`(?:${keysEsc})\\s*=\\s*['"]([^'"]+)['"]`, "i"));
+  match = s.match(new RegExp(`(?:${keysEsc})\\s*=\\s*['"]([^'"]*)['"]`, "i"));
   if (match) return match[1].trim();
 
-  match = s.match(new RegExp(`(?:${keysEsc})\\s*=\\s*([^|'\\n]+)`, "i"));
+  match = s.match(new RegExp(`(?:${keysEsc})\\s*=\\s*([^|'\\n]*)`, "i"));
   if (match) return match[1].trim();
 
-  return null;
+  return findKeyValue(s, keys);
 }
 
 export function parseEmpresaFromQrText(qrText: string): string | null {

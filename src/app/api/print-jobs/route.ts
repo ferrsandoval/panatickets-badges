@@ -11,7 +11,8 @@ export async function GET(req: Request) {
       orderBy: [{ printedAt: "asc" }, { createdAt: "desc" }],
       select: { id: true, name: true, createdAt: true, printedAt: true },
     });
-    return NextResponse.json(jobs);
+    const valid = jobs.filter((j) => j.name && j.name.trim().length >= 2);
+    return NextResponse.json(valid);
   } catch (e) {
     console.error("GET /api/print-jobs error", e);
     const message = e instanceof Error ? e.message : String(e);
