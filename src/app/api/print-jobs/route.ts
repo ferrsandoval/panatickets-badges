@@ -6,9 +6,8 @@ export async function GET(req: Request) {
   const onlyPending = searchParams.get("printed") !== "true";
   const project = searchParams.get("project");
 
-  const prisma = getPrismaForProject(project);
-
   try {
+    const prisma = getPrismaForProject(project);
     const jobs = await prisma.printJob.findMany({
       where: onlyPending ? { printedAt: null } : undefined,
       orderBy: [{ printedAt: "asc" }, { createdAt: "desc" }],

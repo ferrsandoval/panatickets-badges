@@ -75,7 +75,6 @@ export async function POST(req: NextRequest) {
   }
 
   const project = req.nextUrl.searchParams.get("project");
-  const prisma = getPrismaForProject(project);
 
   let body: Record<string, unknown>;
   const contentType = req.headers.get("content-type") ?? "";
@@ -141,6 +140,7 @@ export async function POST(req: NextRequest) {
   const hash = contentHash(qrText);
 
   try {
+    const prisma = getPrismaForProject(project);
     const existing = scanId
       ? await prisma.printJob.findUnique({ where: { scanId }, select: { id: true } })
       : await prisma.printJob.findUnique({ where: { contentHash: hash }, select: { id: true } });

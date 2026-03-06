@@ -34,13 +34,23 @@ export function getPrismaForProject(project: string | null | undefined): PrismaC
   if (cache[cacheKey]) return cache[cacheKey];
 
   const normalized = name.toUpperCase().replace(/[^A-Z0-9]/g, "_");
-  const envVar = `DATABASE_URL_${normalized}`;
-  const url = process.env[envVar];
+  const baseEnvVar = `DATABASE_URL_${normalized}`;
+  const envCandidates = [
+    baseEnvVar,
+    `${baseEnvVar}_DATABASE_URL`,
+    `${baseEnvVar}_POSTGRES_URL`,
+    `${baseEnvVar}_PRISMA_DATABASE_URL`,
+  ];
+  const matchedEnvVar = envCandidates.find((envVar) => {
+    const value = process.env[envVar];
+    return typeof value === "string" && value.trim().length > 0;
+  });
+  const url = matchedEnvVar ? process.env[matchedEnvVar] : undefined;
 
   if (!url) {
     throw new Error(
-      `No se encontró la variable de entorno ${envVar} para el proyecto "${name}". ` +
-        `Define ${envVar} con la cadena de conexión de esa base de datos.`
+      `No se encontró una variable de entorno válida para el proyecto "${name}". ` +
+        `Probé: ${envCandidates.join(", ")}.`
     );
   }
 

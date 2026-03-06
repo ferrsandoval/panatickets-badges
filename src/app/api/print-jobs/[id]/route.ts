@@ -8,10 +8,10 @@ export async function GET(
   const { id } = await params;
   const { searchParams } = new URL(req.url);
   const project = searchParams.get("project");
-  const prisma = getPrismaForProject(project);
   type JobRow = { id: string; name: string; empresa?: string | null; telefono?: string | null; email?: string | null; createdAt: Date; printedAt: Date | null };
   let job: JobRow | null = null;
   try {
+    const prisma = getPrismaForProject(project);
     job = await prisma.printJob.findUnique({
       where: { id },
       select: { id: true, name: true, empresa: true, telefono: true, email: true, createdAt: true, printedAt: true },
@@ -42,7 +42,6 @@ export async function PATCH(
   const { id } = await params;
   const { searchParams } = new URL(req.url);
   const project = searchParams.get("project");
-  const prisma = getPrismaForProject(project);
   let body: { printed?: boolean };
   try {
     body = await req.json();
@@ -54,10 +53,16 @@ export async function PATCH(
     return NextResponse.json({ error: "Expected { printed: true }" }, { status: 400 });
   }
 
-  const job = await prisma.printJob.update({
-    where: { id },
-    data: { printedAt: new Date() },
-    select: { id: true, name: true, printedAt: true },
-  });
-  return NextResponse.json(job);
+  try {
+    const prisma = getPrismaForProject(project);
+    const job = await prisma.printJob.update({
+      where: { id },
+      data: { printedAt: new Date() },
+      select: { id: true, name: true, printedAt: true },
+    });
+    return NextResponse.json(job);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return NextResponse.json({ error: "Database error", detail: message }, { status: 500 });
+  }
 }
