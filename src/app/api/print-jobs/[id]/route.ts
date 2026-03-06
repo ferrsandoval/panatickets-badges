@@ -13,6 +13,7 @@ export async function GET(
 
   try {
     const prisma = getPrismaForProject(project);
+    try {
       job = await prisma.printJob.findUnique({
         where: { id },
         select: { id: true, name: true, empresa: true, telefono: true, email: true, createdAt: true, printedAt: true },
