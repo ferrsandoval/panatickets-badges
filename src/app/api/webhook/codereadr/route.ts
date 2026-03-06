@@ -141,85 +141,90 @@ export async function POST(req: NextRequest) {
 
   try {
     const prisma = getPrismaForProject(project);
-    const existing = scanId
-      ? await prisma.printJob.findUnique({ where: { scanId }, select: { id: true } })
-      : await prisma.printJob.findUnique({ where: { contentHash: hash }, select: { id: true } });
+    try {
+      const existing = scanId
+        ? await prisma.printJob.findUnique({ where: { scanId }, select: { id: true } })
+        : await prisma.printJob.findUnique({ where: { contentHash: hash }, select: { id: true } });
 
-    if (existing) {
-      return NextResponse.json({ ok: true, duplicate: true, id: existing.id }, { status: 200 });
-    }
+      if (existing) {
+        return NextResponse.json({ ok: true, duplicate: true, id: existing.id }, { status: 200 });
+      }
 
-    const job = await prisma.printJob.create({
-      data: {
-        scanId: scanId ?? undefined,
-        contentHash: hash,
-        name: nameTrimmed,
-        rawPayload: qrText.slice(0, 2000),
-        ...(empresa !== undefined && { empresa }),
-        ...(pais !== undefined && { pais }),
-        ...(feria !== undefined && { feria }),
-        ...(telefono !== undefined && { telefono }),
-        ...(email !== undefined && { email }),
-      },
-    });
+      const job = await prisma.printJob.create({
+        data: {
+          scanId: scanId ?? undefined,
+          contentHash: hash,
+          name: nameTrimmed,
+          rawPayload: qrText.slice(0, 2000),
+          ...(empresa !== undefined && { empresa }),
+          ...(pais !== undefined && { pais }),
+          ...(feria !== undefined && { feria }),
+          ...(telefono !== undefined && { telefono }),
+          ...(email !== undefined && { email }),
+        },
+      });
 
-        return NextResponse.json(
-      {
-        ok: true,
-        id: job.id,
-        parsed: { name: nameTrimmed, empresa, telefono, email },
-        qrPreview: qrText.slice(0, 150),
-      },
-      { status: 201 }
-    );
-  } catch (e) {
-    console.error("webhook codereadr error", e);
-    const msg = e instanceof Error ? e.message : String(e);
-    if (msg.includes("empresa") || msg.includes("pais") || msg.includes("feria") || msg.includes("telefono") || msg.includes("email") || msg.includes("column")) {
-      const id = randomUUID();
-      const rawPayload = qrText.slice(0, 2000);
-      try {
-        await prisma.$executeRawUnsafe(
-          `INSERT INTO print_jobs (id, scan_id, content_hash, name, empresa, telefono, email, raw_payload, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())`,
-          id,
-          scanId ?? null,
-          hash,
-          nameTrimmed,
-          empresa ?? null,
-          telefono ?? null,
-          email ?? null,
-          rawPayload
-        );
-        return NextResponse.json(
-          { ok: true, id, parsed: { name: nameTrimmed, empresa, telefono, email }, qrPreview: qrText.slice(0, 150) },
-          { status: 201 }
-        );
-      } catch (_e2) {
+      return NextResponse.json(
+        {
+          ok: true,
+          id: job.id,
+          parsed: { name: nameTrimmed, empresa, telefono, email },
+          qrPreview: qrText.slice(0, 150),
+        },
+        { status: 201 }
+      );
+    } catch (e) {
+      console.error("webhook codereadr error", e);
+      const msg = e instanceof Error ? e.message : String(e);
+      if (msg.includes("empresa") || msg.includes("pais") || msg.includes("feria") || msg.includes("telefono") || msg.includes("email") || msg.includes("column")) {
+        const id = randomUUID();
+        const rawPayload = qrText.slice(0, 2000);
         try {
           await prisma.$executeRawUnsafe(
-            `INSERT INTO print_jobs (id, scan_id, content_hash, name, raw_payload, created_at) VALUES ($1, $2, $3, $4, $5, NOW())`,
+            `INSERT INTO print_jobs (id, scan_id, content_hash, name, empresa, telefono, email, raw_payload, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())`,
             id,
             scanId ?? null,
             hash,
             nameTrimmed,
+            empresa ?? null,
+            telefono ?? null,
+            email ?? null,
             rawPayload
           );
           return NextResponse.json(
-            {
-              ok: true,
-              id,
-              parsed: { name: nameTrimmed, empresa, telefono, email },
-              qrPreview: qrText.slice(0, 150),
-              warning: "Tabla sin columnas empresa/telefono/email. Ejecuta GET /api/setup-db?token=... para añadirlas.",
-            },
+            { ok: true, id, parsed: { name: nameTrimmed, empresa, telefono, email }, qrPreview: qrText.slice(0, 150) },
             { status: 201 }
           );
-        } catch (e3) {
-          console.error("webhook codereadr create fallback error", e3);
-          return NextResponse.json({ error: "Internal error", detail: String(e3) }, { status: 500 });
+        } catch (_e2) {
+          try {
+            await prisma.$executeRawUnsafe(
+              `INSERT INTO print_jobs (id, scan_id, content_hash, name, raw_payload, created_at) VALUES ($1, $2, $3, $4, $5, NOW())`,
+              id,
+              scanId ?? null,
+              hash,
+              nameTrimmed,
+              rawPayload
+            );
+            return NextResponse.json(
+              {
+                ok: true,
+                id,
+                parsed: { name: nameTrimmed, empresa, telefono, email },
+                qrPreview: qrText.slice(0, 150),
+                warning: "Tabla sin columnas empresa/telefono/email. Ejecuta GET /api/setup-db?token=... para añadirlas.",
+              },
+              { status: 201 }
+            );
+          } catch (e3) {
+            console.error("webhook codereadr create fallback error", e3);
+            return NextResponse.json({ error: "Internal error", detail: String(e3) }, { status: 500 });
+          }
         }
       }
+      return NextResponse.json({ error: "Internal error", detail: msg }, { status: 500 });
     }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
     return NextResponse.json({ error: "Internal error", detail: msg }, { status: 500 });
   }
 }
