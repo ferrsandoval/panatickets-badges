@@ -30,6 +30,7 @@
     justify-content: center;
     align-items: center;
     text-align: center;
+    transform: rotate(-90deg);
     transform-origin: center center;
   }
   .label-line {
@@ -78,6 +79,7 @@
     gap: 6px;
     align-items: center;
     text-align: center;
+    transform: rotate(-90deg);
     transform-origin: center center;
   }
   .label-line {
