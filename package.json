@@ -6,7 +6,6 @@
     "dev": "next dev",
     "build": "prisma generate && next build",
     "test:qr": "npx tsx scripts/test-qr-parser.ts",
-    "authorized:import": "node scripts/import-authorized-qr.mjs",
     "build:siteground": "next build && node scripts/prepare-standalone.js",
     "start": "next start",
     "start:standalone": "node .next/standalone/server.js",
