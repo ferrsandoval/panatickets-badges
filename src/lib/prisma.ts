@@ -5,8 +5,8 @@ const globalForPrisma = globalThis as unknown as {
   prismaByProject?: Record<string, PrismaClient>;
 };
 
-const prismaLogLevels =
-  process.env.NODE_ENV === "development" ? (["query", "error", "warn"] as const) : (["error"] as const);
+const prismaLogLevels: Array<"query" | "error" | "warn"> =
+  process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"];
 
 export const prisma =
   globalForPrisma.prisma ??
