@@ -1,7 +1,7 @@
-/* Etiqueta 68mm (ancho) x 87mm (alto), texto girado 90° */
+/* Etiqueta 88mm (ancho) x 55mm (alto), texto girado 90° */
 @page {
-  size: 68mm 87mm;
-  margin: 3mm;
+  size: 88mm 55mm;
+  margin: 2mm;
 }
 
 @media print {
@@ -12,9 +12,9 @@
     color: black;
   }
   .label-page {
-    width: 62mm;
-    height: 81mm;
-    padding: 3mm;
+    width: 84mm;
+    height: 51mm;
+    padding: 2mm;
     margin: 0;
     display: flex;
     align-items: center;
@@ -38,28 +38,33 @@
   }
   /* Nombre: mayúsculas, negrita */
   .label-line.label-name {
-    font-size: 24pt;
+    font-size: 22pt;
     font-weight: 700;
     text-transform: uppercase;
   }
   /* Empresa: mayúsculas, regular */
   .label-line.label-empresa {
-    font-size: 18pt;
+    font-size: 16pt;
     font-weight: 400;
     text-transform: uppercase;
   }
   /* Teléfono y Email */
   .label-line.label-telefono,
   .label-line.label-email {
-    font-size: 15pt;
+    font-size: 13pt;
     font-weight: 400;
+  }
+  .label-line.label-expo {
+    font-size: 12pt;
+    font-weight: 600;
+    text-transform: uppercase;
   }
 }
 
 @media screen {
   .label-page {
-    width: 68mm;
-    height: 87mm;
+    width: 88mm;
+    height: 55mm;
     border: 1px solid #334155;
     display: flex;
     align-items: center;
@@ -81,18 +86,23 @@
     line-height: 1.2;
   }
   .label-line.label-name {
-    font-size: 24pt;
+    font-size: 22pt;
     font-weight: 700;
     text-transform: uppercase;
   }
   .label-line.label-empresa {
-    font-size: 18pt;
+    font-size: 16pt;
     font-weight: 400;
     text-transform: uppercase;
   }
   .label-line.label-telefono,
   .label-line.label-email {
-    font-size: 15pt;
+    font-size: 13pt;
     font-weight: 400;
+  }
+  .label-line.label-expo {
+    font-size: 12pt;
+    font-weight: 600;
+    text-transform: uppercase;
   }
 }

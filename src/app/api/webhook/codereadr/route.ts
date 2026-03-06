@@ -141,6 +141,21 @@ export async function POST(req: NextRequest) {
 
   try {
     const prisma = getPrismaForProject(project);
+    const authorized = await prisma.authorizedQr.findUnique({
+      where: { qrContent: qrText },
+      select: { id: true },
+    });
+
+    if (!authorized) {
+      return NextResponse.json(
+        {
+          error: "QR no autorizado",
+          detail: "El contenido completo del QR no existe en la lista autorizada para esta expo.",
+        },
+        { status: 403 }
+      );
+    }
+
     try {
       const existing = scanId
         ? await prisma.printJob.findUnique({ where: { scanId }, select: { id: true } })

@@ -24,3 +24,14 @@ model PrintJob {
   @@index([printedAt, createdAt])
   @@map("print_jobs")
 }
+
+model AuthorizedQr {
+  id        String   @id @default(cuid())
+  qrContent String   @unique @map("qr_content") @db.Text
+  sourceFile String? @map("source_file")
+  sourceRow Int?     @map("source_row")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("authorized_qrs")
+}
