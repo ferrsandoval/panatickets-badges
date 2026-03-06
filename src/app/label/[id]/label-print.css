@@ -1,6 +1,6 @@
-/* Etiqueta 88mm (ancho) x 55mm (alto), texto girado 90° */
+/* Etiqueta 87mm (ancho) x 58mm (alto), texto girado 90° */
 @page {
-  size: 88mm 55mm;
+  size: 87mm 58mm;
   margin: 2mm;
 }
 
@@ -12,8 +12,8 @@
     color: black;
   }
   .label-page {
-    width: 84mm;
-    height: 51mm;
+    width: 83mm;
+    height: 54mm;
     padding: 2mm;
     margin: 0;
     display: flex;
@@ -63,8 +63,8 @@
 
 @media screen {
   .label-page {
-    width: 88mm;
-    height: 55mm;
+    width: 87mm;
+    height: 58mm;
     border: 1px solid #334155;
     display: flex;
     align-items: center;
