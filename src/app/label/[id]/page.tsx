@@ -62,7 +62,6 @@ export default function LabelPage() {
   const lines = [
     job.name && { text: job.name, className: "label-name" },
     job.empresa && { text: job.empresa, className: "label-empresa" },
-    job.telefono && { text: job.telefono, className: "label-telefono" },
     job.email && { text: job.email, className: "label-email" },
     expoLabel && { text: expoLabel, className: "label-expo" },
   ].filter(Boolean) as { text: string; className: string }[];
