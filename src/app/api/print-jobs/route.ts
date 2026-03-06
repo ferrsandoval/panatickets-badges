@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getPrismaForProject } from "@/lib/prisma";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const onlyPending = searchParams.get("printed") !== "true";
+  const project = searchParams.get("project");
+
+  const prisma = getPrismaForProject(project);
 
   try {
     const jobs = await prisma.printJob.findMany({

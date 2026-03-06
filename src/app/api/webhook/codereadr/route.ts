@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getPrismaForProject } from "@/lib/prisma";
 import {
   parseNameFromQrText,
   parseEmpresaFromQrText,
@@ -73,6 +73,9 @@ export async function POST(req: NextRequest) {
   if (!validateToken(getToken(req))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const project = req.nextUrl.searchParams.get("project");
+  const prisma = getPrismaForProject(project);
 
   let body: Record<string, unknown>;
   const contentType = req.headers.get("content-type") ?? "";

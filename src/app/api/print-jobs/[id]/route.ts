@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getPrismaForProject } from "@/lib/prisma";
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const { searchParams } = new URL(req.url);
+  const project = searchParams.get("project");
+  const prisma = getPrismaForProject(project);
   type JobRow = { id: string; name: string; empresa?: string | null; telefono?: string | null; email?: string | null; createdAt: Date; printedAt: Date | null };
   let job: JobRow | null = null;
   try {
@@ -37,6 +40,9 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const { searchParams } = new URL(req.url);
+  const project = searchParams.get("project");
+  const prisma = getPrismaForProject(project);
   let body: { printed?: boolean };
   try {
     body = await req.json();
