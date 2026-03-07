@@ -180,7 +180,7 @@ function PrintQueueContent() {
           <img
             src="/logo-panatickets.png"
             alt="PanaTickets"
-            style={{ width: 72, height: 72, objectFit: "contain", flexShrink: 0 }}
+            style={{ width: 132, height: 132, objectFit: "contain", flexShrink: 0 }}
             onError={(event) => {
               event.currentTarget.style.display = "none";
             }}
