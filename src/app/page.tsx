@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type PrintJob = {
@@ -25,10 +27,18 @@ const PROJECTS = [
   { key: "expo_electronica_2026", label: "EXPO ELECTRÓNICA 2026" },
 ] as const;
 
+const POINTS = [
+  { key: "punto1", label: "Punto 1" },
+  { key: "punto2", label: "Punto 2" },
+  { key: "punto3", label: "Punto 3" },
+  { key: "punto4", label: "Punto 4" },
+] as const;
+
 type JobsByProject = Record<string, PrintJob[]>;
 type QueuedPrintJob = PrintJob & { projectKey: string; projectLabel: string };
 
 export default function PrintQueuePage() {
+  const searchParams = useSearchParams();
   const [jobsByProject, setJobsByProject] = useState<JobsByProject>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +53,9 @@ export default function PrintQueuePage() {
     () => Object.fromEntries(PROJECTS.map((project) => [project.key, project.label])),
     []
   );
+  const currentPoint = searchParams.get("point")?.trim() || null;
+  const currentPointLabel =
+    POINTS.find((point) => point.key === currentPoint)?.label ?? currentPoint;
 
   const fetchJobs = async () => {
     setLoading((prev) => prev && Object.keys(jobsByProject).length === 0);
@@ -53,6 +66,9 @@ export default function PrintQueuePage() {
           const url = new URL("/api/print-jobs", window.location.origin);
           url.searchParams.set("printed", "false");
           url.searchParams.set("project", key);
+          if (currentPoint) {
+            url.searchParams.set("point", currentPoint);
+          }
           const res = await fetch(url.toString());
           if (!res.ok) throw new Error(res.statusText);
           const data = (await res.json()) as PrintJob[];
@@ -90,12 +106,15 @@ export default function PrintQueuePage() {
         window.clearTimeout(markPrintedTimeoutRef.current);
       }
     };
-  }, []);
+  }, [currentPoint]);
 
   const markPrinted = async (projectKey: string, id: string) => {
     try {
       const url = new URL(`/api/print-jobs/${id}`, window.location.origin);
       url.searchParams.set("project", projectKey);
+      if (currentPoint) {
+        url.searchParams.set("point", currentPoint);
+      }
       const res = await fetch(url.toString(), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -112,6 +131,7 @@ export default function PrintQueuePage() {
   };
 
   useEffect(() => {
+    if (!currentPoint) return;
     if (isPrintingRef.current) return;
 
     const nextJob = Object.entries(jobsByProject)
@@ -129,8 +149,15 @@ export default function PrintQueuePage() {
     isPrintingRef.current = true;
     currentJobRef.current = nextJob;
     setCurrentlyPrinting(`${nextJob.projectLabel}: ${nextJob.name}`);
-    printFrameRef.current.src = `/label/${nextJob.id}?project=${encodeURIComponent(nextJob.projectKey)}&autoprint=1&t=${Date.now()}`;
-  }, [jobsByProject, projectLabelByKey]);
+    const labelUrl = new URL(`/label/${nextJob.id}`, window.location.origin);
+    labelUrl.searchParams.set("project", nextJob.projectKey);
+    labelUrl.searchParams.set("autoprint", "1");
+    labelUrl.searchParams.set("t", String(Date.now()));
+    if (currentPoint) {
+      labelUrl.searchParams.set("point", currentPoint);
+    }
+    printFrameRef.current.src = labelUrl.toString();
+  }, [currentPoint, jobsByProject, projectLabelByKey]);
 
   const handlePrintFrameLoad = () => {
     const currentJob = currentJobRef.current;
@@ -152,9 +179,37 @@ export default function PrintQueuePage() {
     <main style={{ maxWidth: 1200, margin: "0 auto" }}>
       <h1 style={{ marginBottom: "0.5rem" }}>Colas de impresión – Expos 2026</h1>
       <p style={{ color: "#94a3b8", marginBottom: "1.5rem" }}>
-        Todas las expos se muestran en esta pantalla. Cada etiqueta pendiente se imprime automáticamente en Chrome
-        con `--kiosk-printing`.
+        {currentPoint
+          ? `Modo impresión para ${currentPointLabel}. Cada etiqueta pendiente se imprime automáticamente en Chrome con --kiosk-printing.`
+          : "Todas las expos se muestran en esta pantalla. Abre un link de punto para imprimir solo en ese punto."}
       </p>
+
+      <section
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+          gap: "0.75rem",
+          marginBottom: "1.5rem",
+        }}
+      >
+        {POINTS.map((point) => (
+          <Link
+            key={point.key}
+            href={`/${point.key}`}
+            style={{
+              display: "block",
+              border: "1px solid #334155",
+              borderRadius: 8,
+              padding: "0.85rem 1rem",
+              background: currentPoint === point.key ? "#082f49" : "#020617",
+              color: "#e2e8f0",
+              textDecoration: "none",
+            }}
+          >
+            {point.label}
+          </Link>
+        ))}
+      </section>
 
       {error && (
         <p style={{ color: "#f87171", marginBottom: "1rem" }}>{error}</p>

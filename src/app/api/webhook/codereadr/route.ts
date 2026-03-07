@@ -13,6 +13,13 @@ import {
 
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 const WEBHOOK_SECRET_SHORT = process.env.WEBHOOK_SECRET_SHORT; // token corto por si CodeREADr corta la URL
+const AUTHORIZED_POINT_BY_USER_ID: Record<string, string> = {
+  "567189": "punto1",
+  "256045": "punto2",
+  "176281": "punto3",
+  "173272": "punto3",
+  "256044": "punto4",
+};
 
 function getToken(req: NextRequest): string | null {
   const auth = req.headers.get("authorization");
@@ -33,6 +40,11 @@ function getString(obj: Record<string, unknown>, ...keys: string[]): string | nu
     if (typeof v === "string" && v.trim()) return v.trim();
   }
   return null;
+}
+
+function getPointFromAuthorizedUserId(userId: string | null): string | null {
+  if (!userId) return null;
+  return AUTHORIZED_POINT_BY_USER_ID[userId] ?? null;
 }
 
 /** Obtiene el texto del QR desde el body; acepta claves conocidas y busca cualquier valor que parezca formato Nombre='...'|... */
@@ -75,6 +87,7 @@ export async function POST(req: NextRequest) {
   }
 
   const project = req.nextUrl.searchParams.get("project");
+  const pointFromQuery = req.nextUrl.searchParams.get("point")?.trim() || null;
 
   let body: Record<string, unknown>;
   const contentType = req.headers.get("content-type") ?? "";
@@ -86,7 +99,32 @@ export async function POST(req: NextRequest) {
   }
 
   const scanId = getString(body, "scan_id", "scanId", "scanid", "EscanerID", "escaner_id") ?? null;
+  const userId =
+    getString(body, "User ID", "user_id", "userid", "userId", "UserID", "user id", "idusuario") ?? null;
+  const authorizedPoint = getPointFromAuthorizedUserId(userId);
+  const point = authorizedPoint ?? pointFromQuery ?? undefined;
   const qrText = getQrTextFromBody(body);
+
+  if (userId && !authorizedPoint) {
+    return NextResponse.json(
+      {
+        error: "Dispositivo no autorizado",
+        receivedUserId: userId,
+      },
+      { status: 403 }
+    );
+  }
+
+  if (!point) {
+    return NextResponse.json(
+      {
+        error: "No se pudo identificar el punto de impresión",
+        detail: "Envía un User ID autorizado desde CodeREADr o agrega ?point=punto1 en la URL.",
+        receivedUserId: userId,
+      },
+      { status: 400 }
+    );
+  }
 
   if (!qrText || qrText.length < 15) {
     return NextResponse.json(
@@ -138,6 +176,7 @@ export async function POST(req: NextRequest) {
   }
 
   const hash = contentHash(qrText);
+  const storedRawPayload = point ? `[point:${point}]\n${qrText.slice(0, 2000)}` : qrText.slice(0, 2000);
 
   try {
     const prisma = getPrismaForProject(project);
@@ -155,7 +194,8 @@ export async function POST(req: NextRequest) {
           scanId: scanId ?? undefined,
           contentHash: hash,
           name: nameTrimmed,
-          rawPayload: qrText.slice(0, 2000),
+          rawPayload: storedRawPayload,
+          ...(point !== undefined && { point }),
           ...(empresa !== undefined && { empresa }),
           ...(pais !== undefined && { pais }),
           ...(feria !== undefined && { feria }),
@@ -178,14 +218,15 @@ export async function POST(req: NextRequest) {
       const msg = e instanceof Error ? e.message : String(e);
       if (msg.includes("empresa") || msg.includes("pais") || msg.includes("feria") || msg.includes("telefono") || msg.includes("email") || msg.includes("column")) {
         const id = randomUUID();
-        const rawPayload = qrText.slice(0, 2000);
+        const rawPayload = storedRawPayload;
         try {
           await prisma.$executeRawUnsafe(
-            `INSERT INTO print_jobs (id, scan_id, content_hash, name, empresa, telefono, email, raw_payload, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())`,
+            `INSERT INTO print_jobs (id, scan_id, content_hash, name, point, empresa, telefono, email, raw_payload, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())`,
             id,
             scanId ?? null,
             hash,
             nameTrimmed,
+            point ?? null,
             empresa ?? null,
             telefono ?? null,
             email ?? null,
