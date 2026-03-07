@@ -1,5 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPrismaForProject } from "@/lib/prisma";
+import { parseEmpresaFromQrText, parsePaisFromQrText } from "@/lib/qr-parser";
+
+function extractQrText(rawPayload: string | null | undefined): string {
+  if (!rawPayload) return "";
+  return rawPayload.replace(/^\[point:[^\]]+\]\s*/i, "");
+}
+
+function hydrateJobFieldsFromRawPayload<T extends { empresa?: string | null; pais?: string | null; rawPayload?: string | null }>(
+  job: T | null
+): T | null {
+  if (!job) return job;
+  const qrText = extractQrText(job.rawPayload);
+  return {
+    ...job,
+    empresa: job.empresa ?? parseEmpresaFromQrText(qrText),
+    pais: job.pais ?? parsePaisFromQrText(qrText),
+  };
+}
 
 export async function GET(
   req: NextRequest,
@@ -8,7 +26,7 @@ export async function GET(
   const { id } = await params;
   const { searchParams } = new URL(req.url);
   const project = searchParams.get("project");
-  type JobRow = { id: string; name: string; empresa?: string | null; telefono?: string | null; pais?: string | null; createdAt: Date; printedAt: Date | null };
+  type JobRow = { id: string; name: string; empresa?: string | null; telefono?: string | null; pais?: string | null; rawPayload?: string | null; createdAt: Date; printedAt: Date | null };
   let job: JobRow | null = null;
 
   try {
@@ -16,21 +34,22 @@ export async function GET(
     try {
       job = await prisma.printJob.findUnique({
         where: { id },
-        select: { id: true, name: true, empresa: true, telefono: true, pais: true, createdAt: true, printedAt: true },
+        select: { id: true, name: true, empresa: true, telefono: true, pais: true, rawPayload: true, createdAt: true, printedAt: true },
       });
+      job = hydrateJobFieldsFromRawPayload(job);
     } catch {
       try {
         job = await prisma.printJob.findUnique({
           where: { id },
-          select: { id: true, name: true, empresa: true, pais: true, createdAt: true, printedAt: true },
+          select: { id: true, name: true, empresa: true, pais: true, rawPayload: true, createdAt: true, printedAt: true },
         });
-        if (job) job = { ...job, telefono: null };
+        if (job) job = hydrateJobFieldsFromRawPayload({ ...job, telefono: null });
       } catch {
         job = await prisma.printJob.findUnique({
           where: { id },
-          select: { id: true, name: true, createdAt: true, printedAt: true },
+          select: { id: true, name: true, rawPayload: true, createdAt: true, printedAt: true },
         });
-        if (job) job = { ...job, empresa: null, telefono: null, pais: null };
+        if (job) job = hydrateJobFieldsFromRawPayload({ ...job, empresa: null, telefono: null, pais: null });
       }
     }
   } catch (e) {

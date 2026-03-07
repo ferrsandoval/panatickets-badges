@@ -221,13 +221,15 @@ export async function POST(req: NextRequest) {
         const rawPayload = storedRawPayload;
         try {
           await prisma.$executeRawUnsafe(
-            `INSERT INTO print_jobs (id, scan_id, content_hash, name, point, empresa, telefono, email, raw_payload, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())`,
+            `INSERT INTO print_jobs (id, scan_id, content_hash, name, point, empresa, pais, feria, telefono, email, raw_payload, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())`,
             id,
             scanId ?? null,
             hash,
             nameTrimmed,
             point ?? null,
             empresa ?? null,
+            pais ?? null,
+            feria ?? null,
             telefono ?? null,
             email ?? null,
             rawPayload
@@ -239,11 +241,16 @@ export async function POST(req: NextRequest) {
         } catch (_e2) {
           try {
             await prisma.$executeRawUnsafe(
-              `INSERT INTO print_jobs (id, scan_id, content_hash, name, raw_payload, created_at) VALUES ($1, $2, $3, $4, $5, NOW())`,
+              `INSERT INTO print_jobs (id, scan_id, content_hash, name, empresa, pais, feria, telefono, email, raw_payload, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())`,
               id,
               scanId ?? null,
               hash,
               nameTrimmed,
+              empresa ?? null,
+              pais ?? null,
+              feria ?? null,
+              telefono ?? null,
+              email ?? null,
               rawPayload
             );
             return NextResponse.json(
