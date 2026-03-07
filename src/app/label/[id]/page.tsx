@@ -9,7 +9,7 @@ type Job = {
   name: string;
   empresa?: string | null;
   telefono?: string | null;
-  email?: string | null;
+  pais?: string | null;
 };
 
 function getExpoLabel(project: string | null): string | null {
@@ -62,7 +62,7 @@ export default function LabelPage() {
   const lines = [
     job.name && { text: job.name, className: "label-name" },
     job.empresa && { text: job.empresa, className: "label-empresa" },
-    job.email && { text: job.email, className: "label-email" },
+    job.pais && { text: job.pais, className: "label-email" },
     expoLabel && { text: expoLabel, className: "label-expo" },
   ].filter(Boolean) as { text: string; className: string }[];
 

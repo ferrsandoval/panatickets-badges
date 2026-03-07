@@ -8,7 +8,7 @@ export async function GET(
   const { id } = await params;
   const { searchParams } = new URL(req.url);
   const project = searchParams.get("project");
-  type JobRow = { id: string; name: string; empresa?: string | null; telefono?: string | null; email?: string | null; createdAt: Date; printedAt: Date | null };
+  type JobRow = { id: string; name: string; empresa?: string | null; telefono?: string | null; pais?: string | null; createdAt: Date; printedAt: Date | null };
   let job: JobRow | null = null;
 
   try {
@@ -16,21 +16,21 @@ export async function GET(
     try {
       job = await prisma.printJob.findUnique({
         where: { id },
-        select: { id: true, name: true, empresa: true, telefono: true, email: true, createdAt: true, printedAt: true },
+        select: { id: true, name: true, empresa: true, telefono: true, pais: true, createdAt: true, printedAt: true },
       });
     } catch {
       try {
         job = await prisma.printJob.findUnique({
           where: { id },
-          select: { id: true, name: true, empresa: true, createdAt: true, printedAt: true },
+          select: { id: true, name: true, empresa: true, pais: true, createdAt: true, printedAt: true },
         });
-        if (job) job = { ...job, telefono: null, email: null };
+        if (job) job = { ...job, telefono: null };
       } catch {
         job = await prisma.printJob.findUnique({
           where: { id },
           select: { id: true, name: true, createdAt: true, printedAt: true },
         });
-        if (job) job = { ...job, empresa: null, telefono: null, email: null };
+        if (job) job = { ...job, empresa: null, telefono: null, pais: null };
       }
     }
   } catch (e) {
