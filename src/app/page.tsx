@@ -162,12 +162,71 @@ function PrintQueueContent() {
 
   return (
     <main style={{ maxWidth: 1200, margin: "0 auto" }}>
-      <h1 style={{ marginBottom: "0.5rem" }}>Colas de impresión – Expos 2026</h1>
-      <p style={{ color: "#94a3b8", marginBottom: "1.5rem" }}>
-        {currentPoint
-          ? `Modo impresión para ${currentPointLabel}. Cada etiqueta pendiente se imprime automáticamente en Chrome con --kiosk-printing.`
-          : "Todas las expos se muestran en esta pantalla. Abre un link de punto para imprimir solo en ese punto."}
-      </p>
+      <section
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "1rem",
+          marginBottom: "1.5rem",
+          padding: "1rem 1.25rem",
+          border: "1px solid #334155",
+          borderRadius: 16,
+          background:
+            "linear-gradient(135deg, rgba(2,6,23,0.96) 0%, rgba(15,23,42,0.96) 60%, rgba(8,47,73,0.96) 100%)",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "1rem", minWidth: 0 }}>
+          <img
+            src="/logo-panatickets.png"
+            alt="PanaTickets"
+            style={{ width: 72, height: 72, objectFit: "contain", flexShrink: 0 }}
+            onError={(event) => {
+              event.currentTarget.style.display = "none";
+            }}
+          />
+          <div>
+            <p
+              style={{
+                margin: 0,
+                fontSize: "0.75rem",
+                letterSpacing: "0.18em",
+                textTransform: "uppercase",
+                color: "#38bdf8",
+              }}
+            >
+              PanaTickets
+            </p>
+            <h1
+              style={{
+                margin: "0.15rem 0 0.35rem",
+                fontSize: "1.8rem",
+                lineHeight: 1.1,
+              }}
+            >
+              {currentPointLabel ?? "Centro de impresion"}
+            </h1>
+            <p style={{ margin: 0, color: "#cbd5e1", fontSize: "0.95rem" }}>
+              Operacion de acreditacion en tiempo real
+            </p>
+          </div>
+        </div>
+        {currentPoint && (
+          <div
+            style={{
+              padding: "0.55rem 0.85rem",
+              borderRadius: 999,
+              border: "1px solid #0ea5e9",
+              color: "#e0f2fe",
+              background: "rgba(8, 47, 73, 0.55)",
+              fontSize: "0.9rem",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {currentPointLabel}
+          </div>
+        )}
+      </section>
 
       <section
         style={{
