@@ -9,6 +9,14 @@ type PrintJob = {
   printedAt: string | null;
 };
 
+type EchoDebugPayload = {
+  ok: boolean;
+  message: string;
+  receivedAt: string | null;
+  bodyKeys: string[];
+  bodySample: Record<string, string>;
+};
+
 const PROJECTS = [
   { key: "expo_logistica_2026", label: "EXPO LOGISTICA 2026" },
   { key: "expo_turismo_2026", label: "EXPO TURISMO 2026" },
@@ -25,6 +33,7 @@ export default function PrintQueuePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentlyPrinting, setCurrentlyPrinting] = useState<string | null>(null);
+  const [echoDebug, setEchoDebug] = useState<EchoDebugPayload | null>(null);
   const printFrameRef = useRef<HTMLIFrameElement | null>(null);
   const isPrintingRef = useRef(false);
   const currentJobRef = useRef<QueuedPrintJob | null>(null);
@@ -58,11 +67,25 @@ export default function PrintQueuePage() {
     }
   };
 
+  const fetchEchoDebug = async () => {
+    try {
+      const res = await fetch("/api/webhook/codereadr/echo", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = (await res.json()) as EchoDebugPayload;
+      setEchoDebug(data);
+    } catch {
+      // El debug es opcional; no interrumpir la cola si falla.
+    }
+  };
+
   useEffect(() => {
     void fetchJobs();
+    void fetchEchoDebug();
     const t = setInterval(fetchJobs, 5000);
+    const echoTimer = setInterval(fetchEchoDebug, 3000);
     return () => {
       clearInterval(t);
+      clearInterval(echoTimer);
       if (markPrintedTimeoutRef.current) {
         window.clearTimeout(markPrintedTimeoutRef.current);
       }
@@ -204,6 +227,28 @@ export default function PrintQueuePage() {
           right: 0,
         }}
       />
+      <section
+        style={{
+          marginTop: "2rem",
+          padding: "1rem",
+          border: "1px solid #334155",
+          borderRadius: 8,
+          background: "#020617",
+        }}
+      >
+        <h2 style={{ fontSize: "1rem", marginBottom: "0.75rem" }}>Echo de CodeREADr</h2>
+        <pre
+          style={{
+            margin: 0,
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+            fontSize: "0.85rem",
+            color: "#cbd5e1",
+          }}
+        >
+          {JSON.stringify(echoDebug ?? { ok: true, message: "Cargando echo..." }, null, 2)}
+        </pre>
+      </section>
     </main>
   );
 }
