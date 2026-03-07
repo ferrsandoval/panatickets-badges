@@ -35,6 +35,7 @@
   }
   .label-line {
     line-height: 1.2;
+    min-height: 1.2em;
   }
   /* Nombre: mayúsculas, negrita */
   .label-line.label-name {
@@ -84,6 +85,7 @@
   }
   .label-line {
     line-height: 1.2;
+    min-height: 1.2em;
   }
   .label-line.label-name {
     font-size: 22pt;

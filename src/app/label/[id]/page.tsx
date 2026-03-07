@@ -29,6 +29,10 @@ function getExpoLabel(project: string | null): string | null {
   }
 }
 
+function getLabelValue(value: string | null | undefined): string {
+  return value?.trim() || "";
+}
+
 export default function LabelPage() {
   const params = useParams();
   const id = params.id as string;
@@ -60,11 +64,11 @@ export default function LabelPage() {
   const expoLabel = getExpoLabel(searchParams.get("project"));
 
   const lines = [
-    job.name && { text: job.name, className: "label-name" },
-    job.empresa && { text: job.empresa, className: "label-empresa" },
-    job.pais && { text: job.pais, className: "label-email" },
-    expoLabel && { text: expoLabel, className: "label-expo" },
-  ].filter(Boolean) as { text: string; className: string }[];
+    { text: getLabelValue(job.name), className: "label-name" },
+    { text: getLabelValue(job.empresa), className: "label-empresa" },
+    { text: getLabelValue(job.pais), className: "label-email" },
+    { text: getLabelValue(expoLabel), className: "label-expo" },
+  ];
 
   return (
     <div className="label-page">
