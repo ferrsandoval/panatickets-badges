@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type PrintJob = {
   id: string;
@@ -18,14 +18,25 @@ const PROJECTS = [
 ] as const;
 
 type JobsByProject = Record<string, PrintJob[]>;
+type QueuedPrintJob = PrintJob & { projectKey: string; projectLabel: string };
 
 export default function PrintQueuePage() {
   const [jobsByProject, setJobsByProject] = useState<JobsByProject>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentlyPrinting, setCurrentlyPrinting] = useState<string | null>(null);
+  const printFrameRef = useRef<HTMLIFrameElement | null>(null);
+  const isPrintingRef = useRef(false);
+  const currentJobRef = useRef<QueuedPrintJob | null>(null);
+  const markPrintedTimeoutRef = useRef<number | null>(null);
+
+  const projectLabelByKey = useMemo(
+    () => Object.fromEntries(PROJECTS.map((project) => [project.key, project.label])),
+    []
+  );
 
   const fetchJobs = async () => {
-    setLoading(true);
+    setLoading((prev) => prev && Object.keys(jobsByProject).length === 0);
     setError(null);
     try {
       const results = await Promise.all(
@@ -48,18 +59,17 @@ export default function PrintQueuePage() {
   };
 
   useEffect(() => {
-    fetchJobs();
+    void fetchJobs();
     const t = setInterval(fetchJobs, 5000);
-    return () => clearInterval(t);
+    return () => {
+      clearInterval(t);
+      if (markPrintedTimeoutRef.current) {
+        window.clearTimeout(markPrintedTimeoutRef.current);
+      }
+    };
   }, []);
 
-  const handlePrint = (projectKey: string, id: string) => {
-    const url = `/label/${id}?project=${encodeURIComponent(projectKey)}`;
-    const w = window.open(url, "_blank", "width=400,height=300");
-    if (w) w.focus();
-  };
-
-  const handleMarkPrinted = async (projectKey: string, id: string) => {
+  const markPrinted = async (projectKey: string, id: string) => {
     try {
       const url = new URL(`/api/print-jobs/${id}`, window.location.origin);
       url.searchParams.set("project", projectKey);
@@ -78,16 +88,59 @@ export default function PrintQueuePage() {
     }
   };
 
+  useEffect(() => {
+    if (isPrintingRef.current) return;
+
+    const nextJob = Object.entries(jobsByProject)
+      .flatMap(([projectKey, jobs]) =>
+        (jobs ?? []).map((job) => ({
+          ...job,
+          projectKey,
+          projectLabel: projectLabelByKey[projectKey] ?? projectKey,
+        }))
+      )
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())[0];
+
+    if (!nextJob || !printFrameRef.current) return;
+
+    isPrintingRef.current = true;
+    currentJobRef.current = nextJob;
+    setCurrentlyPrinting(`${nextJob.projectLabel}: ${nextJob.name}`);
+    printFrameRef.current.src = `/label/${nextJob.id}?project=${encodeURIComponent(nextJob.projectKey)}&autoprint=1&t=${Date.now()}`;
+  }, [jobsByProject, projectLabelByKey]);
+
+  const handlePrintFrameLoad = () => {
+    const currentJob = currentJobRef.current;
+    if (!currentJob) return;
+
+    markPrintedTimeoutRef.current = window.setTimeout(async () => {
+      await markPrinted(currentJob.projectKey, currentJob.id);
+      currentJobRef.current = null;
+      isPrintingRef.current = false;
+      setCurrentlyPrinting(null);
+      if (printFrameRef.current) {
+        printFrameRef.current.src = "about:blank";
+      }
+      await fetchJobs();
+    }, 1200);
+  };
+
   return (
     <main style={{ maxWidth: 1200, margin: "0 auto" }}>
       <h1 style={{ marginBottom: "0.5rem" }}>Colas de impresión – Expos 2026</h1>
       <p style={{ color: "#94a3b8", marginBottom: "1.5rem" }}>
-        Todas las expos se muestran en esta pantalla. Imprimir abre la vista de etiqueta con la expo correspondiente;
-        luego marca como impreso.
+        Todas las expos se muestran en esta pantalla. Cada etiqueta pendiente se imprime automáticamente en Chrome
+        con `--kiosk-printing`.
       </p>
 
       {error && (
         <p style={{ color: "#f87171", marginBottom: "1rem" }}>{error}</p>
+      )}
+
+      {currentlyPrinting && (
+        <p style={{ color: "#38bdf8", marginBottom: "1rem" }}>
+          Imprimiendo: {currentlyPrinting}
+        </p>
       )}
 
       {loading && Object.values(jobsByProject).every((list) => (list ?? []).length === 0) ? (
@@ -116,63 +169,41 @@ export default function PrintQueuePage() {
                 {jobs.length === 0 ? (
                   <p style={{ color: "#64748b", fontSize: "0.875rem" }}>No hay etiquetas pendientes.</p>
                 ) : (
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
-                    <thead>
-                      <tr style={{ borderBottom: "1px solid #1e293b", textAlign: "left" }}>
-                        <th style={{ padding: "0.4rem" }}>Nombre</th>
-                        <th style={{ padding: "0.4rem" }}>Recibido</th>
-                        <th style={{ padding: "0.4rem", width: 140 }}>Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {jobs.map((job) => (
-                        <tr key={job.id} style={{ borderBottom: "1px solid #1e293b" }}>
-                          <td style={{ padding: "0.4rem" }}>{job.name}</td>
-                          <td style={{ padding: "0.4rem", color: "#94a3b8" }}>
-                            {new Date(job.createdAt).toLocaleString("es")}
-                          </td>
-                          <td style={{ padding: "0.4rem" }}>
-                            <button
-                              type="button"
-                              onClick={() => handlePrint(key, job.id)}
-                              style={{
-                                marginRight: 4,
-                                marginBottom: 4,
-                                padding: "4px 8px",
-                                background: "#3b82f6",
-                                color: "#fff",
-                                border: "none",
-                                borderRadius: 6,
-                                cursor: "pointer",
-                              }}
-                            >
-                              Imprimir
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleMarkPrinted(key, job.id)}
-                              style={{
-                                padding: "4px 8px",
-                                background: "#334155",
-                                color: "#e2e8f0",
-                                border: "none",
-                                borderRadius: 6,
-                                cursor: "pointer",
-                              }}
-                            >
-                              Marcado
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <ul style={{ listStyle: "none", margin: 0, padding: 0, fontSize: "0.875rem" }}>
+                    {jobs.map((job) => (
+                      <li
+                        key={job.id}
+                        style={{
+                          borderBottom: "1px solid #1e293b",
+                          padding: "0.5rem 0.4rem",
+                          color: currentJobRef.current?.id === job.id ? "#38bdf8" : "#e2e8f0",
+                        }}
+                      >
+                        {job.name}
+                      </li>
+                    ))}
+                  </ul>
                 )}
               </section>
             );
           })}
         </div>
       )}
+      <iframe
+        ref={printFrameRef}
+        title="print-frame"
+        onLoad={handlePrintFrameLoad}
+        style={{
+          position: "fixed",
+          width: 0,
+          height: 0,
+          opacity: 0,
+          pointerEvents: "none",
+          border: 0,
+          bottom: 0,
+          right: 0,
+        }}
+      />
     </main>
   );
 }
