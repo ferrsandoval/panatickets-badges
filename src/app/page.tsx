@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 
 type PrintJob = {
   id: string;
@@ -38,6 +38,14 @@ type JobsByProject = Record<string, PrintJob[]>;
 type QueuedPrintJob = PrintJob & { projectKey: string; projectLabel: string };
 
 export default function PrintQueuePage() {
+  return (
+    <Suspense fallback={<p style={{ margin: "2rem auto", maxWidth: 1200 }}>Cargando…</p>}>
+      <PrintQueueContent />
+    </Suspense>
+  );
+}
+
+function PrintQueueContent() {
   const searchParams = useSearchParams();
   const [jobsByProject, setJobsByProject] = useState<JobsByProject>({});
   const [loading, setLoading] = useState(true);
