@@ -80,8 +80,10 @@ export async function findPaisFromLookup(
     if (pais) return pais;
   }
 
+  const tableEntries = Array.from(lookupByNormalized.entries());
   for (const nc of normalizedCandidates) {
-    for (const [tableKey, pais] of lookupByNormalized) {
+    for (let i = 0; i < tableEntries.length; i++) {
+      const [tableKey, pais] = tableEntries[i];
       if (nc.length >= 10 && tableKey.length >= 10 && (nc.includes(tableKey) || tableKey.includes(nc)))
         return pais;
     }
