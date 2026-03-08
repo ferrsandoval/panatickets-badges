@@ -211,21 +211,36 @@ function PrintQueueContent() {
             </p>
           </div>
         </div>
-        {currentPoint && (
-          <div
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+          {currentPoint && (
+            <div
+              style={{
+                padding: "0.55rem 0.85rem",
+                borderRadius: 999,
+                border: "1px solid #0ea5e9",
+                color: "#e0f2fe",
+                background: "rgba(8, 47, 73, 0.55)",
+                fontSize: "0.9rem",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {currentPointLabel}
+            </div>
+          )}
+          <Link
+            href="/databases"
             style={{
               padding: "0.55rem 0.85rem",
-              borderRadius: 999,
-              border: "1px solid #0ea5e9",
-              color: "#e0f2fe",
-              background: "rgba(8, 47, 73, 0.55)",
+              borderRadius: 8,
+              border: "1px solid #475569",
+              color: "#94a3b8",
               fontSize: "0.9rem",
-              whiteSpace: "nowrap",
+              textDecoration: "none",
             }}
           >
-            {currentPointLabel}
-          </div>
-        )}
+            Bases de datos por expo
+          </Link>
+        </div>
       </section>
 
       <section

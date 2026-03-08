@@ -20,17 +20,34 @@ function hydrateJobFieldsFromRawPayload<T extends { empresa?: string | null; pai
   };
 }
 
+/** Variantes normalizadas del texto QR para buscar en qr_country_lookup (evitar fallos por espacios/saltos de línea). */
+function qrLookupCandidates(qrText: string, rawPayload?: string | null): string[] {
+  const t = qrText.trim();
+  const candidates = new Set<string>();
+  if (t) {
+    candidates.add(t);
+    const noCr = t.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+    candidates.add(noCr);
+    candidates.add(noCr.trim());
+    const singleSpace = t.replace(/\s+/g, " ").trim();
+    candidates.add(singleSpace);
+  }
+  if (rawPayload?.trim()) candidates.add(rawPayload.trim());
+  return [...candidates];
+}
+
 /** Si el job no tiene pais, intenta obtenerlo de qr_country_lookup por el texto del QR. */
 async function enrichPaisFromLookup<T extends { pais?: string | null; rawPayload?: string | null }>(
   job: T | null,
   prisma: PrismaClient
 ): Promise<T | null> {
   if (!job || (job.pais != null && job.pais.trim() !== "")) return job;
-  const qrText = extractQrText(job.rawPayload).trim();
-  if (!qrText) return job;
+  const qrText = extractQrText(job.rawPayload);
+  const candidates = qrLookupCandidates(qrText, job.rawPayload);
+  if (!candidates.length) return job;
   try {
-    const lookup = await prisma.qrCountryLookup.findUnique({
-      where: { qrContent: qrText },
+    const lookup = await prisma.qrCountryLookup.findFirst({
+      where: { qrContent: { in: candidates } },
       select: { pais: true },
     });
     if (lookup?.pais) return { ...job, pais: lookup.pais };
