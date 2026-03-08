@@ -239,7 +239,7 @@ function PrintQueueContent() {
               fontWeight: 600,
             }}
           >
-            Ver bases de datos
+            Ver bases de datos cargadas
           </Link>
         </div>
       </section>
@@ -252,24 +252,6 @@ function PrintQueueContent() {
           marginBottom: "1.5rem",
         }}
       >
-        <Link
-          href="/databases"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem",
-            border: "1px solid #0ea5e9",
-            borderRadius: 8,
-            padding: "0.85rem 1rem",
-            background: "rgba(14, 165, 233, 0.1)",
-            color: "#38bdf8",
-            textDecoration: "none",
-            fontWeight: 500,
-          }}
-        >
-          <span style={{ fontSize: "1.2rem" }}>📊</span>
-          Ver bases de datos cargadas
-        </Link>
         {POINTS.map((point) => (
           <Link
             key={point.key}
