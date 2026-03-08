@@ -17,23 +17,29 @@ export async function GET(req: NextRequest) {
   try {
     const prisma = getPrismaForProject(project);
 
-    const [printJobsTotal, printJobsPending, qrCountryLookupCount, recentJobs] = await Promise.all([
-      prisma.printJob.count(),
-      prisma.printJob.count({ where: { printedAt: null } }),
-      prisma.qrCountryLookup.count().catch(() => 0),
-      prisma.printJob.findMany({
-        orderBy: { createdAt: "desc" },
-        take: 50,
-        select: {
-          id: true,
-          name: true,
-          empresa: true,
-          pais: true,
-          createdAt: true,
-          printedAt: true,
-        },
-      }),
-    ]);
+    const [printJobsTotal, printJobsPending, qrCountryLookupCount, recentJobs, qrCountryLookupRows] =
+      await Promise.all([
+        prisma.printJob.count(),
+        prisma.printJob.count({ where: { printedAt: null } }),
+        prisma.qrCountryLookup.count().catch(() => 0),
+        prisma.printJob.findMany({
+          orderBy: { createdAt: "desc" },
+          take: 50,
+          select: {
+            id: true,
+            name: true,
+            empresa: true,
+            pais: true,
+            createdAt: true,
+            printedAt: true,
+          },
+        }),
+        prisma.qrCountryLookup.findMany({
+          orderBy: { qrContent: "asc" },
+          take: 5000,
+          select: { qrContent: true, pais: true },
+        }).catch(() => []),
+      ]);
 
     return NextResponse.json({
       project,
@@ -48,6 +54,7 @@ export async function GET(req: NextRequest) {
         createdAt: j.createdAt.toISOString(),
         printedAt: j.printedAt?.toISOString() ?? null,
       })),
+      qrCountryLookup: qrCountryLookupRows.map((r) => ({ qrContent: r.qrContent, pais: r.pais })),
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);

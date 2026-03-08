@@ -24,6 +24,7 @@ type DbStats = {
     createdAt: string;
     printedAt: string | null;
   }>;
+  qrCountryLookup: Array<{ qrContent: string; pais: string }>;
 };
 
 export default function DatabasesPage() {
@@ -222,6 +223,65 @@ function DatabasesContent() {
                         </td>
                         <td style={{ padding: "0.6rem 0.75rem", color: j.printedAt ? "#34d399" : "#fbbf24" }}>
                           {j.printedAt ? new Date(j.printedAt).toLocaleString("es") : "Pendiente"}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section
+            style={{
+              marginTop: "1.5rem",
+              border: "1px solid #334155",
+              borderRadius: 12,
+              background: "#0f172a",
+              overflow: "hidden",
+            }}
+          >
+            <h2 style={{ margin: 0, padding: "1rem", fontSize: "1rem", borderBottom: "1px solid #334155" }}>
+              Tabla <strong>QR → País</strong> (lookup) — contenido cargado ({(stats.qrCountryLookup ?? []).length} filas)
+            </h2>
+            <p style={{ margin: 0, padding: "0.5rem 1rem", fontSize: "0.8rem", color: "#94a3b8" }}>
+              Aquí se compara el contenido del QR con esta tabla para obtener el país en la etiqueta.
+            </p>
+            <div style={{ overflowX: "auto", maxHeight: "50vh", overflowY: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8rem" }}>
+                <thead style={{ position: "sticky", top: 0, background: "#1e293b", zIndex: 1 }}>
+                  <tr style={{ color: "#94a3b8" }}>
+                    <th style={{ textAlign: "left", padding: "0.5rem 0.75rem", minWidth: 200 }}>QR (contenido)</th>
+                    <th style={{ textAlign: "left", padding: "0.5rem 0.75rem", width: 120 }}>País</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(stats.qrCountryLookup ?? []).length === 0 ? (
+                    <tr>
+                      <td colSpan={2} style={{ padding: "1.5rem", color: "#64748b" }}>
+                        No hay filas en la tabla de lookup. Sube un CSV con qr_content,pais para esta expo.
+                      </td>
+                    </tr>
+                  ) : (
+                    (stats.qrCountryLookup ?? []).map((row, i) => (
+                      <tr key={i} style={{ borderTop: "1px solid #1e293b" }}>
+                        <td
+                          style={{
+                            padding: "0.5rem 0.75rem",
+                            color: "#cbd5e1",
+                            fontFamily: "monospace",
+                            fontSize: "0.75rem",
+                            maxWidth: 400,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                          title={row.qrContent}
+                        >
+                          {row.qrContent}
+                        </td>
+                        <td style={{ padding: "0.5rem 0.75rem", color: "#34d399", whiteSpace: "nowrap" }}>
+                          {row.pais}
                         </td>
                       </tr>
                     ))
