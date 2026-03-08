@@ -44,7 +44,24 @@ export async function GET(req: NextRequest) {
     await prisma.$executeRawUnsafe(`ALTER TABLE "print_jobs" ADD COLUMN IF NOT EXISTS "telefono" TEXT;`);
     await prisma.$executeRawUnsafe(`ALTER TABLE "print_jobs" ADD COLUMN IF NOT EXISTS "email" TEXT;`);
 
-    return NextResponse.json({ ok: true, message: "Tabla print_jobs creada o actualizada (empresa, pais, feria, telefono, email)." });
+    // Tabla auxiliar QR completo -> país (lookup desde CSV)
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "qr_country_lookup" (
+        "id" TEXT NOT NULL,
+        "qr_content" TEXT NOT NULL,
+        "pais" TEXT NOT NULL,
+        "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "qr_country_lookup_pkey" PRIMARY KEY ("id")
+      );
+    `);
+    await prisma.$executeRawUnsafe(`
+      CREATE UNIQUE INDEX IF NOT EXISTS "qr_country_lookup_qr_content_key" ON "qr_country_lookup"("qr_content");
+    `);
+
+    return NextResponse.json({
+      ok: true,
+      message: "Tabla print_jobs y qr_country_lookup creadas o actualizadas (empresa, pais, feria, telefono, email).",
+    });
   } catch (e) {
     console.error("setup-db error", e);
     return NextResponse.json({ error: String(e) }, { status: 500 });

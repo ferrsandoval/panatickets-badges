@@ -25,3 +25,14 @@ model PrintJob {
   @@index([point, printedAt, createdAt])
   @@map("print_jobs")
 }
+
+/// Tabla auxiliar central: lookup QR completo -> país (cargada desde CSV).
+/// Se consulta con el texto completo del QR; si coincide, se usa ese país en print_jobs.
+model QrCountryLookup {
+  id        String   @id @default(cuid())
+  qrContent String   @unique @map("qr_content")
+  pais      String   @map("pais")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("qr_country_lookup")
+}

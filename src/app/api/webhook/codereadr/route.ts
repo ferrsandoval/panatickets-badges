@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { getPrismaForProject } from "@/lib/prisma";
+import { prisma, getPrismaForProject } from "@/lib/prisma";
 import {
   parseNameFromQrText,
   parseEmpresaFromQrText,
@@ -178,18 +178,31 @@ export async function POST(req: NextRequest) {
   const hash = contentHash(qrText);
   const storedRawPayload = point ? `[point:${point}]\n${qrText.slice(0, 2000)}` : qrText.slice(0, 2000);
 
+  // Lookup país desde tabla auxiliar (QR completo) — tabla central en default DB
+  const qrNormalized = qrText.trim();
+  let paisToUse: string | undefined = pais ?? undefined;
   try {
-    const prisma = getPrismaForProject(project);
+    const lookup = await prisma.qrCountryLookup.findUnique({
+      where: { qrContent: qrNormalized },
+      select: { pais: true },
+    });
+    if (lookup?.pais) paisToUse = lookup.pais;
+  } catch (_) {
+    // Si la tabla no existe o falla (ej. DB por proyecto sin la tabla), usar solo el parseado
+  }
+
+  try {
+    const projectPrisma = getPrismaForProject(project);
     try {
       const existing = scanId
-        ? await prisma.printJob.findUnique({ where: { scanId }, select: { id: true } })
-        : await prisma.printJob.findUnique({ where: { contentHash: hash }, select: { id: true } });
+        ? await projectPrisma.printJob.findUnique({ where: { scanId }, select: { id: true } })
+        : await projectPrisma.printJob.findUnique({ where: { contentHash: hash }, select: { id: true } });
 
       if (existing) {
         return NextResponse.json({ ok: true, duplicate: true, id: existing.id }, { status: 200 });
       }
 
-      const job = await prisma.printJob.create({
+      const job = await projectPrisma.printJob.create({
         data: {
           scanId: scanId ?? undefined,
           contentHash: hash,
@@ -197,7 +210,7 @@ export async function POST(req: NextRequest) {
           rawPayload: storedRawPayload,
           ...(point !== undefined && { point }),
           ...(empresa !== undefined && { empresa }),
-          ...(pais !== undefined && { pais }),
+          ...(paisToUse !== undefined && { pais: paisToUse }),
           ...(feria !== undefined && { feria }),
           ...(telefono !== undefined && { telefono }),
           ...(email !== undefined && { email }),
@@ -208,7 +221,7 @@ export async function POST(req: NextRequest) {
         {
           ok: true,
           id: job.id,
-          parsed: { name: nameTrimmed, empresa, telefono, email },
+          parsed: { name: nameTrimmed, empresa, telefono, email, pais: paisToUse },
           qrPreview: qrText.slice(0, 150),
         },
         { status: 201 }
@@ -220,7 +233,7 @@ export async function POST(req: NextRequest) {
         const id = randomUUID();
         const rawPayload = storedRawPayload;
         try {
-          await prisma.$executeRawUnsafe(
+          await projectPrisma.$executeRawUnsafe(
             `INSERT INTO print_jobs (id, scan_id, content_hash, name, point, empresa, pais, feria, telefono, email, raw_payload, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())`,
             id,
             scanId ?? null,
@@ -228,26 +241,26 @@ export async function POST(req: NextRequest) {
             nameTrimmed,
             point ?? null,
             empresa ?? null,
-            pais ?? null,
+            paisToUse ?? null,
             feria ?? null,
             telefono ?? null,
             email ?? null,
             rawPayload
           );
           return NextResponse.json(
-            { ok: true, id, parsed: { name: nameTrimmed, empresa, telefono, email }, qrPreview: qrText.slice(0, 150) },
+            { ok: true, id, parsed: { name: nameTrimmed, empresa, telefono, email, pais: paisToUse }, qrPreview: qrText.slice(0, 150) },
             { status: 201 }
           );
         } catch (_e2) {
           try {
-            await prisma.$executeRawUnsafe(
+            await projectPrisma.$executeRawUnsafe(
               `INSERT INTO print_jobs (id, scan_id, content_hash, name, empresa, pais, feria, telefono, email, raw_payload, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())`,
               id,
               scanId ?? null,
               hash,
               nameTrimmed,
               empresa ?? null,
-              pais ?? null,
+              paisToUse ?? null,
               feria ?? null,
               telefono ?? null,
               email ?? null,
@@ -257,7 +270,7 @@ export async function POST(req: NextRequest) {
               {
                 ok: true,
                 id,
-                parsed: { name: nameTrimmed, empresa, telefono, email },
+                parsed: { name: nameTrimmed, empresa, telefono, email, pais: paisToUse },
                 qrPreview: qrText.slice(0, 150),
                 warning: "Tabla sin columnas empresa/telefono/email. Ejecuta GET /api/setup-db?token=... para añadirlas.",
               },
