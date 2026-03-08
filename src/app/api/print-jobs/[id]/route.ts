@@ -33,7 +33,7 @@ function qrLookupCandidates(qrText: string, rawPayload?: string | null): string[
     candidates.add(singleSpace);
   }
   if (rawPayload?.trim()) candidates.add(rawPayload.trim());
-  return [...candidates];
+  return Array.from(candidates);
 }
 
 /** Si el job no tiene pais, intenta obtenerlo de qr_country_lookup por el texto del QR. */
