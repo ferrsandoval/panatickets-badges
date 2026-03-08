@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 const PROJECTS = [
   { key: "expo_logistica_2026", label: "EXPO LOGISTICA 2026" },
@@ -13,6 +13,7 @@ const PROJECTS = [
 
 type DbStats = {
   project: string;
+  usingDefaultDatabase?: boolean;
   printJobsTotal: number;
   printJobsPending: number;
   qrCountryLookupCount: number;
@@ -40,8 +41,15 @@ function DatabasesContent() {
   const [stats, setStats] = useState<DbStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [uploadToken, setUploadToken] = useState("");
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
+  const fetchStats = useCallback(() => {
     if (!selectedProject) return;
     setLoading(true);
     setError(null);
@@ -61,6 +69,45 @@ function DatabasesContent() {
       })
       .finally(() => setLoading(false));
   }, [selectedProject]);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats, refreshTrigger]);
+
+  const handleUploadCsv = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setUploadError(null);
+    setUploadSuccess(null);
+    if (!uploadToken.trim()) {
+      setUploadError("Introduce el token de administrador (WEBHOOK_SECRET).");
+      return;
+    }
+    if (!uploadFile) {
+      setUploadError("Selecciona un archivo CSV.");
+      return;
+    }
+    setUploadLoading(true);
+    try {
+      const formData = new FormData();
+      formData.set("file", uploadFile);
+      const url = new URL("/api/admin/upload-qr-pais-csv", window.location.origin);
+      url.searchParams.set("project", selectedProject);
+      url.searchParams.set("token", uploadToken.trim());
+      const res = await fetch(url.toString(), { method: "POST", body: formData });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.detail ?? data.error ?? res.statusText);
+      }
+      setUploadSuccess(data.message ?? `Importadas ${data.total ?? 0} filas.`);
+      setUploadFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      setRefreshTrigger((t) => t + 1);
+    } catch (e) {
+      setUploadError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setUploadLoading(false);
+    }
+  };
 
   const currentLabel = PROJECTS.find((p) => p.key === selectedProject)?.label ?? selectedProject;
 
@@ -134,6 +181,23 @@ function DatabasesContent() {
       )}
 
       {loading && !stats && <p style={{ color: "#94a3b8" }}>Cargando estadísticas…</p>}
+
+      {stats && stats.usingDefaultDatabase && (
+        <section
+          style={{
+            marginBottom: "1rem",
+            padding: "1rem",
+            background: "rgba(251, 191, 36, 0.15)",
+            border: "1px solid #f59e0b",
+            borderRadius: 8,
+            color: "#fbbf24",
+          }}
+        >
+          <strong>Base por defecto.</strong> Para la expo &quot;{stats.project}&quot; no está configurada la variable de entorno (ej.{" "}
+          <code style={{ fontSize: "0.85em" }}>DATABASE_URL_{stats.project.toUpperCase().replace(/[^A-Z0-9]/g, "_")}</code>
+          ). Se muestra la base de datos por defecto (<code>DATABASE_URL</code>). Configura las variables en Vercel y redeploy para ver cada expo por separado.
+        </section>
+      )}
 
       {stats && !loading && (
         <>
@@ -235,6 +299,86 @@ function DatabasesContent() {
           <section
             style={{
               marginTop: "1.5rem",
+              padding: "1rem",
+              border: "1px solid #334155",
+              borderRadius: 12,
+              background: "#0f172a",
+            }}
+          >
+            <h2 style={{ margin: "0 0 0.5rem", fontSize: "1rem" }}>Subir CSV (qr_content,pais)</h2>
+            <p style={{ margin: "0 0 1rem", fontSize: "0.85rem", color: "#94a3b8" }}>
+              Carga un archivo CSV con cabecera <code>qr_content,pais</code> para rellenar la tabla de lookup de esta expo.
+            </p>
+            <form onSubmit={handleUploadCsv} style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", alignItems: "flex-end" }}>
+              <div style={{ minWidth: 200 }}>
+                <label htmlFor="upload-token" style={{ display: "block", fontSize: "0.8rem", color: "#94a3b8", marginBottom: "0.25rem" }}>
+                  Token de admin
+                </label>
+                <input
+                  id="upload-token"
+                  type="password"
+                  value={uploadToken}
+                  onChange={(e) => setUploadToken(e.target.value)}
+                  placeholder="WEBHOOK_SECRET"
+                  style={{
+                    width: "100%",
+                    padding: "0.5rem 0.6rem",
+                    background: "#1e293b",
+                    border: "1px solid #475569",
+                    borderRadius: 6,
+                    color: "#e2e8f0",
+                    fontSize: "0.9rem",
+                  }}
+                />
+              </div>
+              <div style={{ minWidth: 180 }}>
+                <label htmlFor="upload-csv" style={{ display: "block", fontSize: "0.8rem", color: "#94a3b8", marginBottom: "0.25rem" }}>
+                  Archivo CSV
+                </label>
+                <input
+                  ref={fileInputRef}
+                  id="upload-csv"
+                  type="file"
+                  accept=".csv"
+                  onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)}
+                  style={{
+                    width: "100%",
+                    padding: "0.4rem",
+                    background: "#1e293b",
+                    border: "1px solid #475569",
+                    borderRadius: 6,
+                    color: "#e2e8f0",
+                    fontSize: "0.85rem",
+                  }}
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={uploadLoading}
+                style={{
+                  padding: "0.5rem 1rem",
+                  background: uploadLoading ? "#475569" : "#0ea5e9",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 6,
+                  fontSize: "0.9rem",
+                  cursor: uploadLoading ? "not-allowed" : "pointer",
+                }}
+              >
+                {uploadLoading ? "Subiendo…" : "Subir a esta expo"}
+              </button>
+            </form>
+            {uploadError && (
+              <p style={{ margin: "0.75rem 0 0", color: "#f87171", fontSize: "0.85rem" }}>{uploadError}</p>
+            )}
+            {uploadSuccess && (
+              <p style={{ margin: "0.75rem 0 0", color: "#34d399", fontSize: "0.85rem" }}>{uploadSuccess}</p>
+            )}
+          </section>
+
+          <section
+            style={{
+              marginTop: "1.5rem",
               border: "1px solid #334155",
               borderRadius: 12,
               background: "#0f172a",
@@ -259,7 +403,7 @@ function DatabasesContent() {
                   {(stats.qrCountryLookup ?? []).length === 0 ? (
                     <tr>
                       <td colSpan={2} style={{ padding: "1.5rem", color: "#64748b" }}>
-                        No hay filas en la tabla de lookup. Sube un CSV con qr_content,pais para esta expo.
+                        No hay filas en la tabla de lookup. Sube un CSV con qr_content,pais arriba para esta expo.
                       </td>
                     </tr>
                   ) : (

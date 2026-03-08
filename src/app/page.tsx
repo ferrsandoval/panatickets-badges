@@ -232,13 +232,14 @@ function PrintQueueContent() {
             style={{
               padding: "0.55rem 0.85rem",
               borderRadius: 8,
-              border: "1px solid #475569",
-              color: "#94a3b8",
+              border: "1px solid #0ea5e9",
+              color: "#38bdf8",
               fontSize: "0.9rem",
               textDecoration: "none",
+              fontWeight: 600,
             }}
           >
-            Bases de datos por expo
+            Ver bases de datos
           </Link>
         </div>
       </section>
@@ -251,6 +252,24 @@ function PrintQueueContent() {
           marginBottom: "1.5rem",
         }}
       >
+        <Link
+          href="/databases"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            border: "1px solid #0ea5e9",
+            borderRadius: 8,
+            padding: "0.85rem 1rem",
+            background: "rgba(14, 165, 233, 0.1)",
+            color: "#38bdf8",
+            textDecoration: "none",
+            fontWeight: 500,
+          }}
+        >
+          <span style={{ fontSize: "1.2rem" }}>📊</span>
+          Ver bases de datos cargadas
+        </Link>
         {POINTS.map((point) => (
           <Link
             key={point.key}

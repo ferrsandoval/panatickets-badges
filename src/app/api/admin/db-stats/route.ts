@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPrismaForProject } from "@/lib/prisma";
 
+const MISSING_ENV_PATTERN = /no se encontró una variable de entorno válida/i;
+
 /**
  * GET /api/admin/db-stats?project=expo_logistica_2026
  * Devuelve estadísticas y contenido reciente de la base de datos de esa expo.
+ * Si no existe DATABASE_URL_<EXPO> para esa expo, usa la base por defecto (DATABASE_URL) y devuelve usingDefaultDatabase.
  */
 export async function GET(req: NextRequest) {
   const project = req.nextUrl.searchParams.get("project")?.trim();
@@ -14,8 +17,31 @@ export async function GET(req: NextRequest) {
     );
   }
 
+  let prisma;
+  let usingDefaultDatabase = false;
   try {
-    const prisma = getPrismaForProject(project);
+    prisma = getPrismaForProject(project);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    if (MISSING_ENV_PATTERN.test(message)) {
+      try {
+        prisma = getPrismaForProject(null);
+        usingDefaultDatabase = true;
+      } catch (e2) {
+        return NextResponse.json(
+          { error: "Error al conectar", detail: e2 instanceof Error ? e2.message : String(e2), project },
+          { status: 500 }
+        );
+      }
+    } else {
+      return NextResponse.json(
+        { error: "Error al conectar con la base de datos", detail: message, project },
+        { status: 500 }
+      );
+    }
+  }
+
+  try {
 
     const [printJobsTotal, printJobsPending, qrCountryLookupCount, recentJobs, qrCountryLookupRows] =
       await Promise.all([
@@ -43,6 +69,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       project,
+      usingDefaultDatabase,
       printJobsTotal,
       printJobsPending,
       qrCountryLookupCount,
