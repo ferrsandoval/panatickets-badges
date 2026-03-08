@@ -112,26 +112,28 @@ export default function LabelPage() {
   const fetchUrl = project ? `/api/print-jobs/${id}?project=${encodeURIComponent(project)}` : `/api/print-jobs/${id}`;
 
   return (
-    <div className="label-page">
-      <div className="label-layout">
-        <div className="label-content">
-          {lines.map((line, i) => (
-            <div key={i} className={`label-line ${line.className}`}>
-              {line.text}
-            </div>
-          ))}
-        </div>
-        <div className="label-qr">
-          {qrDataUrl ? <img src={qrDataUrl} alt="QR" className="label-qr-image" /> : null}
+    <>
+      <div className="label-page">
+        <div className="label-layout">
+          <div className="label-content">
+            {lines.map((line, i) => (
+              <div key={i} className={`label-line ${line.className}`}>
+                {line.text}
+              </div>
+            ))}
+          </div>
+          <div className="label-qr">
+            {qrDataUrl ? <img src={qrDataUrl} alt="QR" className="label-qr-image" /> : null}
+          </div>
         </div>
       </div>
-      <div className="label-debug">
-        <p className="label-debug-title">Información recibida (solo pantalla, no se imprime)</p>
+      <div className="label-debug" key={`${id}-${project ?? ""}`}>
+        <p className="label-debug-title">Información recibida (solo pantalla, no se imprime) — se actualiza con cada nueva etiqueta</p>
         <p><strong>URL de la API:</strong> {fetchUrl}</p>
         <p><strong>project (expo):</strong> {project ?? "(no enviado)"}</p>
         <p><strong>pais en el job:</strong> {job.pais === undefined ? "undefined" : job.pais === null ? "null" : JSON.stringify(job.pais)}</p>
         <pre className="label-debug-json">{JSON.stringify(job, null, 2)}</pre>
       </div>
-    </div>
+    </>
   );
 }

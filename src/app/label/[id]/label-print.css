@@ -88,14 +88,19 @@
 
 @media screen {
   .label-debug {
-    margin-top: 24px;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 9999;
+    max-height: 45vh;
+    overflow: auto;
     padding: 16px;
     background: #1e293b;
     color: #e2e8f0;
-    border-radius: 8px;
     font-size: 13px;
-    max-width: 100%;
-    overflow: auto;
+    border-top: 2px solid #38bdf8;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
   }
   .label-debug-title {
     margin: 0 0 12px;
@@ -114,10 +119,12 @@
     white-space: pre-wrap;
     word-break: break-all;
     font-size: 12px;
+    max-height: 30vh;
   }
   .label-page {
     width: 87mm;
     height: 58mm;
+    margin: 24px auto 320px;
     border: 1px solid #334155;
     display: flex;
     align-items: stretch;
