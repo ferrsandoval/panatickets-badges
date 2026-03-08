@@ -47,6 +47,7 @@ export async function GET(req: NextRequest) {
     await prisma.$executeRawUnsafe(`
       CREATE UNIQUE INDEX IF NOT EXISTS "print_jobs_content_hash_key" ON "print_jobs"("content_hash");
     `);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "print_jobs" ADD COLUMN IF NOT EXISTS "point" TEXT;`);
     await prisma.$executeRawUnsafe(`
       CREATE INDEX IF NOT EXISTS "print_jobs_point_printed_at_created_at_idx" ON "print_jobs"("point", "printed_at", "created_at");
     `);
