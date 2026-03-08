@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { prisma, getPrismaForProject } from "@/lib/prisma";
+import { getPrismaForProject } from "@/lib/prisma";
 import {
   parseNameFromQrText,
   parseEmpresaFromQrText,
@@ -126,6 +126,16 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  if (!project?.trim()) {
+    return NextResponse.json(
+      {
+        error: "Falta el proyecto (expo)",
+        detail: "Agrega ?project=expo_logistica_2026 (o la key de la expo) en la URL del webhook.",
+      },
+      { status: 400 }
+    );
+  }
+
   if (!qrText || qrText.length < 15) {
     return NextResponse.json(
       {
@@ -178,21 +188,22 @@ export async function POST(req: NextRequest) {
   const hash = contentHash(qrText);
   const storedRawPayload = point ? `[point:${point}]\n${qrText.slice(0, 2000)}` : qrText.slice(0, 2000);
 
-  // Lookup país desde tabla auxiliar (QR completo) — tabla central en default DB
+  const projectPrisma = getPrismaForProject(project);
+
+  // Lookup país desde tabla auxiliar de esta expo (QR completo)
   const qrNormalized = qrText.trim();
   let paisToUse: string | undefined = pais ?? undefined;
   try {
-    const lookup = await prisma.qrCountryLookup.findUnique({
+    const lookup = await projectPrisma.qrCountryLookup.findUnique({
       where: { qrContent: qrNormalized },
       select: { pais: true },
     });
     if (lookup?.pais) paisToUse = lookup.pais;
   } catch (_) {
-    // Si la tabla no existe o falla (ej. DB por proyecto sin la tabla), usar solo el parseado
+    // Si la tabla no existe aún, usar solo el parseado del QR
   }
 
   try {
-    const projectPrisma = getPrismaForProject(project);
     try {
       const existing = scanId
         ? await projectPrisma.printJob.findUnique({ where: { scanId }, select: { id: true } })

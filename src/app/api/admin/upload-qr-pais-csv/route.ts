@@ -1,18 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getPrismaForProject } from "@/lib/prisma";
 import { parseCsvText } from "@/lib/csv-qr-pais";
 
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 
 /**
- * POST /api/admin/upload-qr-pais-csv?token=WEBHOOK_SECRET
+ * POST /api/admin/upload-qr-pais-csv?token=WEBHOOK_SECRET&project=expo_logistica_2026
  * Body: CSV con cabecera qr_content,pais (o archivo multipart con el CSV).
- * Inserta/actualiza la tabla auxiliar qr_country_lookup (match por QR completo -> país).
+ * Inserta/actualiza qr_country_lookup en la base de esa expo.
  */
 export async function POST(req: NextRequest) {
   const token = req.nextUrl.searchParams.get("token");
   if (!WEBHOOK_SECRET || token !== WEBHOOK_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const project = req.nextUrl.searchParams.get("project")?.trim();
+  if (!project) {
+    return NextResponse.json(
+      {
+        error: "Falta project",
+        detail: "Añade ?project=expo_logistica_2026 (o expo_turismo_2026, expo_comer_2026, expo_tech_2026, expo_electronica_2026).",
+      },
+      { status: 400 }
+    );
   }
 
   let text: string;
@@ -42,6 +53,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const prisma = getPrismaForProject(project);
     for (const { qrContent, pais } of rows) {
       const normalized = qrContent.trim();
       if (!normalized) continue;
@@ -53,7 +65,8 @@ export async function POST(req: NextRequest) {
     }
     return NextResponse.json({
       ok: true,
-      message: "CSV importado a qr_country_lookup",
+      message: `CSV importado a qr_country_lookup del proyecto "${project}".`,
+      project,
       total: rows.length,
     });
   } catch (e) {
