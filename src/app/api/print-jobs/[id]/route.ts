@@ -47,9 +47,9 @@ export async function GET(
       } catch {
         job = await prisma.printJob.findUnique({
           where: { id },
-          select: { id: true, name: true, rawPayload: true, createdAt: true, printedAt: true },
+          select: { id: true, name: true, empresa: true, pais: true, rawPayload: true, createdAt: true, printedAt: true },
         });
-        if (job) job = hydrateJobFieldsFromRawPayload({ ...job, empresa: null, telefono: null, pais: null });
+        if (job) job = hydrateJobFieldsFromRawPayload({ ...job, telefono: null });
       }
     }
   } catch (e) {

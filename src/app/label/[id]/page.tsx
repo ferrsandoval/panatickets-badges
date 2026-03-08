@@ -100,10 +100,11 @@ export default function LabelPage() {
 
   const expoLabel = getExpoLabel(searchParams.get("project"));
 
+  const paisValue = getLabelValue(job.pais);
   const lines = [
     { text: getLabelValue(job.name), className: "label-name" },
     { text: getLabelValue(job.empresa), className: "label-empresa" },
-    { text: getLabelValue(job.pais), className: "label-pais" },
+    ...(paisValue ? [{ text: paisValue, className: "label-pais" }] : []),
     { text: getLabelValue(expoLabel), className: "label-expo" },
   ];
 
