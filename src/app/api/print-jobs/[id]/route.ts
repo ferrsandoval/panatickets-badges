@@ -57,6 +57,7 @@ export async function GET(
   const project = searchParams.get("project");
   type JobRow = { id: string; name: string; empresa?: string | null; telefono?: string | null; pais?: string | null; rawPayload?: string | null; createdAt: Date; printedAt: Date | null };
   let job: JobRow | null = null;
+  let lookupDebug: LookupDebug | null = null;
 
   try {
     const prisma = getPrismaForProject(project);
@@ -81,8 +82,7 @@ export async function GET(
         if (job) job = hydrateJobFieldsFromRawPayload({ ...job, telefono: null });
       }
     }
-  let lookupDebug: LookupDebug | null = null;
-  if (job) {
+    if (job) {
     const result = await enrichPaisFromLookup(job, prisma);
     job = result.job;
     lookupDebug = result.debug;
