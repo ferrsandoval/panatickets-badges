@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import QRCode from "qrcode";
 import { useParams, useSearchParams } from "next/navigation";
 import "./label-print.css";
@@ -47,6 +48,8 @@ export default function LabelPage() {
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     const project = searchParams.get("project");
@@ -111,6 +114,16 @@ export default function LabelPage() {
   const project = searchParams.get("project");
   const fetchUrl = project ? `/api/print-jobs/${id}?project=${encodeURIComponent(project)}` : `/api/print-jobs/${id}`;
 
+  const debugPanel = (
+    <div className="label-debug" key={`${id}-${project ?? ""}`}>
+      <p className="label-debug-title">Información recibida (solo pantalla, no se imprime) — se actualiza con cada nueva etiqueta</p>
+      <p><strong>URL de la API:</strong> {fetchUrl}</p>
+      <p><strong>project (expo):</strong> {project ?? "(no enviado)"}</p>
+      <p><strong>pais en el job:</strong> {job.pais === undefined ? "undefined" : job.pais === null ? "null" : JSON.stringify(job.pais)}</p>
+      <pre className="label-debug-json">{JSON.stringify(job, null, 2)}</pre>
+    </div>
+  );
+
   return (
     <>
       <div className="label-page">
@@ -127,13 +140,7 @@ export default function LabelPage() {
           </div>
         </div>
       </div>
-      <div className="label-debug" key={`${id}-${project ?? ""}`}>
-        <p className="label-debug-title">Información recibida (solo pantalla, no se imprime) — se actualiza con cada nueva etiqueta</p>
-        <p><strong>URL de la API:</strong> {fetchUrl}</p>
-        <p><strong>project (expo):</strong> {project ?? "(no enviado)"}</p>
-        <p><strong>pais en el job:</strong> {job.pais === undefined ? "undefined" : job.pais === null ? "null" : JSON.stringify(job.pais)}</p>
-        <pre className="label-debug-json">{JSON.stringify(job, null, 2)}</pre>
-      </div>
+      {mounted && typeof document !== "undefined" && createPortal(debugPanel, document.body)}
     </>
   );
 }
