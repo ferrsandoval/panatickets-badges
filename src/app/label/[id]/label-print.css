@@ -11,6 +11,9 @@
     background: white;
     color: black;
   }
+  .label-debug {
+    display: none !important;
+  }
   .label-page {
     width: 83mm;
     height: 54mm;
@@ -84,6 +87,34 @@
 }
 
 @media screen {
+  .label-debug {
+    margin-top: 24px;
+    padding: 16px;
+    background: #1e293b;
+    color: #e2e8f0;
+    border-radius: 8px;
+    font-size: 13px;
+    max-width: 100%;
+    overflow: auto;
+  }
+  .label-debug-title {
+    margin: 0 0 12px;
+    font-weight: 600;
+    color: #38bdf8;
+  }
+  .label-debug p {
+    margin: 0 0 8px;
+  }
+  .label-debug-json {
+    margin: 12px 0 0;
+    padding: 12px;
+    background: #0f172a;
+    border-radius: 4px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+    font-size: 12px;
+  }
   .label-page {
     width: 87mm;
     height: 58mm;

@@ -108,6 +108,9 @@ export default function LabelPage() {
     { text: getLabelValue(expoLabel), className: "label-expo" },
   ];
 
+  const project = searchParams.get("project");
+  const fetchUrl = project ? `/api/print-jobs/${id}?project=${encodeURIComponent(project)}` : `/api/print-jobs/${id}`;
+
   return (
     <div className="label-page">
       <div className="label-layout">
@@ -121,6 +124,13 @@ export default function LabelPage() {
         <div className="label-qr">
           {qrDataUrl ? <img src={qrDataUrl} alt="QR" className="label-qr-image" /> : null}
         </div>
+      </div>
+      <div className="label-debug">
+        <p className="label-debug-title">Información recibida (solo pantalla, no se imprime)</p>
+        <p><strong>URL de la API:</strong> {fetchUrl}</p>
+        <p><strong>project (expo):</strong> {project ?? "(no enviado)"}</p>
+        <p><strong>pais en el job:</strong> {job.pais === undefined ? "undefined" : job.pais === null ? "null" : JSON.stringify(job.pais)}</p>
+        <pre className="label-debug-json">{JSON.stringify(job, null, 2)}</pre>
       </div>
     </div>
   );
