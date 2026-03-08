@@ -85,8 +85,16 @@ export async function GET(req: NextRequest) {
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
+    const isConnectionError = /can't reach database|connection refused|ECONNREFUSED|ETIMEDOUT|network/i.test(message);
+    const hint = isConnectionError
+      ? " Comprueba que la URL (DATABASE_URL o DATABASE_URL_EXPO_...) sea correcta, que el servidor esté en marcha y que sea accesible desde donde se ejecuta la app (Vercel, local, etc.)."
+      : "";
     return NextResponse.json(
-      { error: "Error al conectar con la base de datos", detail: message, project },
+      {
+        error: "Error al conectar con la base de datos",
+        detail: message + hint,
+        project,
+      },
       { status: 500 }
     );
   }

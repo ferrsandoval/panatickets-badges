@@ -10,11 +10,19 @@ Cada expo tiene su propia base de datos. En **Vercel** crea **una variable por e
 - **Value:** solo la URL de la columna "Value" (copia y pega tal cual, sin comillas).
 - **Environments:** marca **Production** (y Preview si usas ramas).
 
-Solo necesitas **una variable por expo**; no crees las que llevan `_DATABASE_URL`, `_POSTGRES_URL` ni `_PRISMA_DATABASE_URL` al final.
+Puedes usar **una variable por expo** con el nombre corto (tabla de abajo) o las que crea Vercel/Prisma Postgres con sufijo.
+
+**Si ya tienes variables con sufijo** (por ejemplo `DATABASE_URL_EXPO_LOGISTICA_2026_DATABASE_URL`, `_POSTGRES_URL` o `_PRISMA_DATABASE_URL`): **no hace falta cambiar nada**. La app busca, por cada expo, en este orden y usa la primera que exista:
+- `DATABASE_URL_EXPO_<EXPO>` (sin sufijo)
+- `DATABASE_URL_EXPO_<EXPO>_DATABASE_URL`
+- `DATABASE_URL_EXPO_<EXPO>_POSTGRES_URL`
+- `DATABASE_URL_EXPO_<EXPO>_PRISMA_DATABASE_URL`
+
+Con tus variables actuales (las que terminan en `_DATABASE_URL`, etc.) la app ya puede conectar. Si ves "Can't reach database server", revisa la sección de troubleshooting al final del documento.
 
 ---
 
-## Tabla para copiar y pegar
+## Tabla para copiar y pegar (solo si creas variables a mano)
 
 | Name | Value |
 |------|-------|
@@ -26,9 +34,46 @@ Solo necesitas **una variable por expo**; no crees las que llevan `_DATABASE_URL
 
 En Vercel, al crear cada variable, en **Value** pega solo la URL (la parte que está entre comillas en la tabla), **sin** las comillas.
 
+### Variables con sufijo `_DATABASE_URL` (para .env local o referencia)
+
+```
+DATABASE_URL_EXPO_LOGISTICA_2026_DATABASE_URL=postgres://6c15115cf5b990aa76f9efe2746b61c8a05c07a62b1eb2cad2f8971f1fd10d3c:sk_4of8NBp6RYLVV2QDWe3xe@db.prisma.io:5432/postgres?sslmode=require
+DATABASE_URL_EXPO_TURISMO_2026_DATABASE_URL=postgres://d6a96757bb43fcc4bc53f0b7e97b2700f8aff6f3f867a452ec393afa90eae09a:sk_LomFLoQx1CeU_ADqEci5P@db.prisma.io:5432/postgres?sslmode=require
+DATABASE_URL_EXPO_COMER_2026_DATABASE_URL=postgres://f7781e2cb2287b79320777622a5c736663cdd6aa14ad7de27b4ec0d2f38c248e:sk_wZeIc_Uu0WfsJ5TqfC_4S@db.prisma.io:5432/postgres?sslmode=require
+DATABASE_URL_EXPO_TECH_2026_DATABASE_URL=postgres://1c40a8bf13740b731310632fc3cd5d5fa21813b2d9aa168d675424e63f66ab7a:sk_vWszETqpQv4tYgM7OlgDf@db.prisma.io:5432/postgres?sslmode=require
+DATABASE_URL_EXPO_ELECTRONICA_2026_DATABASE_URL=postgres://4ab617ad0627b263e76919a51a0d2a722c1dd4277f55b9d4ca30078631673006:sk_-oVc8jucleBsSqfAYhIc4@db.prisma.io:5432/postgres?sslmode=require
+```
+
 ---
 
-## Después de guardar las variables
+## Qué hacer ahora (paso a paso)
+
+1. **Variables en Vercel**  
+   Asegúrate de tener las 5 variables anteriores (o las equivalentes con otro sufijo) en **Settings → Environment Variables**. Luego haz **Redeploy** (Deployments → ⋯ → Redeploy).
+
+2. **Crear tablas en cada base** (una sola vez por expo). Sustituye `TU_APP` y `TU_TOKEN` y abre cada URL en el navegador:
+   - https://**TU_APP**.vercel.app/api/setup-db?token=**TU_TOKEN**&project=expo_logistica_2026
+   - https://**TU_APP**.vercel.app/api/setup-db?token=**TU_TOKEN**&project=expo_turismo_2026
+   - https://**TU_APP**.vercel.app/api/setup-db?token=**TU_TOKEN**&project=expo_comer_2026
+   - https://**TU_APP**.vercel.app/api/setup-db?token=**TU_TOKEN**&project=expo_tech_2026
+   - https://**TU_APP**.vercel.app/api/setup-db?token=**TU_TOKEN**&project=expo_electronica_2026  
+   Debes ver algo como: `{"ok":true,"message":"Tablas print_jobs y qr_country_lookup creadas/actualizadas..."}`
+
+3. **Cargar QR → país (lookup)**  
+   Opción A: En la app, ve a **Ver bases de datos** → elige una expo → en "Subir CSV" introduce tu token y sube un CSV con columnas `qr_content,pais`.  
+   Opción B: Si tienes CSV en `data/qr-pais/` (EXPO_LOGISTICA.csv, etc.), llama una vez a:  
+   `https://TU_APP.vercel.app/api/admin/import-qr-pais-from-folder?token=TU_TOKEN`
+
+4. **Webhook en CodeREADr**  
+   Configura la URL del webhook con `project` y `point`, por ejemplo:  
+   `https://TU_APP.vercel.app/api/webhook/codereadr?token=TU_TOKEN&project=expo_logistica_2026&point=punto1`
+
+5. **Probar**  
+   Entra en la app, abre **Ver bases de datos**, elige una expo y comprueba que ves estadísticas y, si subiste CSV, la tabla QR → país.
+
+---
+
+## Después de guardar las variables (referencia)
 
 1. **Redeploy** en Vercel (Deployments → ⋯ del último → Redeploy) para que cargue las nuevas variables.
 2. **Crear tablas en cada base** (una vez por expo). Abre en el navegador (con tu token):
@@ -63,3 +108,21 @@ https://TU_APP.vercel.app/api/webhook/codereadr?token=TU_TOKEN&project=expo_logi
 ```
 
 Cambia `project` según la expo a la que corresponda ese escáner.
+
+---
+
+## Si ves "Can't reach database server at db.prisma.io:5432"
+
+Ese mensaje significa que la app no puede conectar con el servidor de base de datos. Revisa:
+
+1. **Que la base esté activa**  
+   Si usas Prisma Postgres (o similar en db.prisma.io), entra en el panel del proveedor y confirma que la instancia está encendida y no está pausada o eliminada.
+
+2. **Que la URL sea la correcta**  
+   En Vercel (o en tu `.env` local), la variable `DATABASE_URL` o `DATABASE_URL_EXPO_...` debe ser la URL de conexión que te dio el proveedor. Si cambiaste de plan o recreaste la base, puede que tengas que actualizar la URL.
+
+3. **Redeploy tras cambiar variables**  
+   Si cambias variables en Vercel, haz **Redeploy** del proyecto para que los cambios se apliquen.
+
+4. **Red y firewall**  
+   Desde donde corre la app (Vercel, tu máquina, etc.) debe poder abrir conexión al puerto 5432 del host de la base de datos. En entornos corporativos a veces un firewall bloquea salida a ese puerto.
