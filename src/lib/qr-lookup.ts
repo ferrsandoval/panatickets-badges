@@ -10,7 +10,7 @@ export function extractQrTextFromPayload(rawPayload: string | null | undefined):
 
 /**
  * Genera variantes del texto QR para buscar en qr_country_lookup
- * (espacios, saltos de línea, mayúsculas/minúsculas).
+ * (espacios, saltos de línea, normalización Unicode).
  */
 export function qrLookupCandidates(qrText: string, rawPayload?: string | null): string[] {
   const t = qrText.trim();
@@ -22,8 +22,14 @@ export function qrLookupCandidates(qrText: string, rawPayload?: string | null): 
     candidates.add(noCr.trim());
     const singleSpace = t.replace(/\s+/g, " ").trim();
     candidates.add(singleSpace);
+    if (typeof String.prototype.normalize === "function") {
+      candidates.add(t.normalize("NFC"));
+      candidates.add(singleSpace.normalize("NFC"));
+    }
   }
   if (rawPayload?.trim()) candidates.add(rawPayload.trim());
+  const afterPrefix = rawPayload?.replace(/^\[point:[^\]]+\]\s*/i, "").trim();
+  if (afterPrefix) candidates.add(afterPrefix);
   return Array.from(candidates);
 }
 
@@ -45,17 +51,19 @@ export async function findPaisFromLookup(
   } catch {
     // tabla puede no existir
   }
-  try {
-    const normalized = Array.from(
-      new Set(candidates.map((c) => c.toLowerCase().trim()).filter(Boolean))
-    );
-    if (!normalized.length) return null;
-    const rows = await prisma.$queryRawUnsafe<{ pais: string }[]>(
-      "SELECT pais FROM qr_country_lookup WHERE LOWER(TRIM(qr_content)) = ANY($1::text[]) LIMIT 1",
-      normalized
-    );
-    return rows[0]?.pais ?? null;
-  } catch {
-    return null;
+  const normalized = Array.from(
+    new Set(candidates.map((c) => c.toLowerCase().trim()).filter(Boolean))
+  );
+  for (const c of normalized) {
+    try {
+      const rows = await prisma.$queryRawUnsafe<{ pais: string }[]>(
+        "SELECT pais FROM qr_country_lookup WHERE LOWER(TRIM(qr_content)) = $1 LIMIT 1",
+        c
+      );
+      if (rows[0]?.pais) return rows[0].pais;
+    } catch {
+      continue;
+    }
   }
+  return null;
 }

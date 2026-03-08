@@ -115,14 +115,28 @@ Cambia `project` según la expo a la que corresponda ese escáner.
 
 Ese mensaje significa que la app no puede conectar con el servidor de base de datos. Revisa:
 
-1. **Que la base esté activa**  
-   Si usas Prisma Postgres (o similar en db.prisma.io), entra en el panel del proveedor y confirma que la instancia está encendida y no está pausada o eliminada.
+### Si usas Prisma Postgres (db.prisma.io) en Vercel
 
-2. **Que la URL sea la correcta**  
-   En Vercel (o en tu `.env` local), la variable `DATABASE_URL` o `DATABASE_URL_EXPO_...` debe ser la URL de conexión que te dio el proveedor. Si cambiaste de plan o recreaste la base, puede que tengas que actualizar la URL.
+1. **Usa la URL con connection pooling**  
+   En Vercel/Prisma suelen darte dos URLs:
+   - **Direct** (puerto 5432): para migraciones; en serverless puede fallar o saturarse.
+   - **Pooled / Prisma** (a veces otro puerto o `?pgbouncer=true`): para producción en Vercel.  
+   En el panel de la base (Vercel → Storage → tu base → Variables, o Prisma Data Platform) copia la URL que diga **“Pooled”**, **“Prisma”** o **“Transaction”** y úsala en `DATABASE_URL_EXPO_...`. No uses solo la URL “Direct” en producción en Vercel.
 
-3. **Redeploy tras cambiar variables**  
-   Si cambias variables en Vercel, haz **Redeploy** del proyecto para que los cambios se apliquen.
+2. **Reinicia la base de datos**  
+   En el panel (Vercel Storage → tu base → Open in Prisma, o Prisma Console): Settings → **Restart** o **Resume** si está pausada. Las bases en plan gratuito a veces se pausan por inactividad.
 
-4. **Red y firewall**  
-   Desde donde corre la app (Vercel, tu máquina, etc.) debe poder abrir conexión al puerto 5432 del host de la base de datos. En entornos corporativos a veces un firewall bloquea salida a ese puerto.
+3. **Timeout en la URL**  
+   Prueba añadir al final de la URL (si no hay ya parámetros):  
+   `?connect_timeout=15`  
+   o, si ya hay `?sslmode=require`:  
+   `?sslmode=require&connect_timeout=15`
+
+4. **Redeploy**  
+   Después de cambiar cualquier variable en Vercel, haz **Redeploy** del proyecto.
+
+### Comprobaciones generales
+
+- **Que la base esté activa** y no pausada o eliminada.
+- **Que la URL sea la correcta** (la que muestra el panel de la base).
+- **Red/firewall**: desde Vercel debe poder salir al puerto de la base (5432 o el que use el pooler).

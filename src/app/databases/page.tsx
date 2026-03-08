@@ -176,9 +176,24 @@ function DatabasesContent() {
       </section>
 
       {error && (
-        <p style={{ color: "#f87171", marginBottom: "1rem", padding: "1rem", background: "#1e293b", borderRadius: 8 }}>
-          {error}
-        </p>
+        <section
+          style={{
+            marginBottom: "1rem",
+            padding: "1rem",
+            background: "rgba(248, 113, 113, 0.1)",
+            border: "1px solid #f87171",
+            borderRadius: 8,
+            color: "#fca5a5",
+          }}
+        >
+          <strong>Error de conexión</strong>
+          <p style={{ margin: "0.5rem 0 0", fontSize: "0.9rem" }}>{error}</p>
+          {/can't reach database|db\.prisma\.io|connection refused|ECONNREFUSED/i.test(error) && (
+            <p style={{ margin: "0.75rem 0 0", fontSize: "0.85rem", color: "#94a3b8" }}>
+              Revisa en <code>docs/VARIABLES_POR_EXPO.md</code>: que la base esté activa en el panel de Prisma/Vercel, que la URL en la variable de entorno sea la correcta y que hayas hecho <strong>Redeploy</strong> en Vercel tras cambiar variables.
+            </p>
+          )}
+        </section>
       )}
 
       {loading && !stats && <p style={{ color: "#94a3b8" }}>Cargando estadísticas…</p>}

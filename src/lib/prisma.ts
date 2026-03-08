@@ -45,13 +45,18 @@ export function getPrismaForProject(project: string | null | undefined): PrismaC
     const value = process.env[envVar];
     return typeof value === "string" && value.trim().length > 0;
   });
-  const url = matchedEnvVar ? process.env[matchedEnvVar] : undefined;
+  let url = matchedEnvVar ? process.env[matchedEnvVar] : undefined;
 
   if (!url) {
     throw new Error(
       `No se encontró una variable de entorno válida para el proyecto "${name}". ` +
         `Probé: ${envCandidates.join(", ")}.`
     );
+  }
+
+  // Añadir connect_timeout si no está (ayuda con Prisma Postgres / serverless)
+  if (!url.includes("connect_timeout")) {
+    url = url.includes("?") ? `${url}&connect_timeout=15` : `${url}?connect_timeout=15`;
   }
 
   const client = new PrismaClient({

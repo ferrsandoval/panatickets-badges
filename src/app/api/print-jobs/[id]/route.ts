@@ -72,7 +72,16 @@ export async function GET(
   }
 
   if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  return NextResponse.json(job);
+  return NextResponse.json({
+    id: job.id,
+    name: job.name,
+    empresa: job.empresa ?? null,
+    telefono: job.telefono ?? null,
+    pais: job.pais ?? null,
+    rawPayload: job.rawPayload ?? null,
+    createdAt: job.createdAt,
+    printedAt: job.printedAt,
+  });
 }
 
 export async function PATCH(
