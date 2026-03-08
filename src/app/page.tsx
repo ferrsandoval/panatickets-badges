@@ -14,7 +14,7 @@ type PrintJob = {
 const PROJECTS = [
   { key: "expo_logistica_2026", label: "EXPO LOGISTICA 2026" },
   { key: "expo_turismo_2026", label: "EXPO TURISMO 2026" },
-  { key: "expo_comer_2026", label: "EXPO COMER 2026" },
+  { key: "expo_comer_2026", label: "EXPOCOMER 2026" },
   { key: "expo_tech_2026", label: "EXPO TECH 2026" },
   { key: "expo_electronica_2026", label: "EXPO ELECTRÓNICA 2026" },
 ] as const;

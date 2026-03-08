@@ -30,7 +30,7 @@ function getExpoLabel(project: string | null): string | null {
     case "expo_turismo_2026":
       return "EXPO TURISMO 2026";
     case "expo_comer_2026":
-      return "EXPO COMER 2026";
+      return "EXPOCOMER 2026";
     case "expo_tech_2026":
       return "EXPO TECH 2026";
     case "expo_electronica_2026":
