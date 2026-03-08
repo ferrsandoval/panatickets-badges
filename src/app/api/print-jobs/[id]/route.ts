@@ -20,16 +20,32 @@ function hydrateJobFieldsFromRawPayload<T extends { empresa?: string | null; pai
   };
 }
 
+export type LookupDebug = {
+  qrTextPreview: string;
+  candidatesCount: number;
+  candidatesPreview: string[];
+  paisFromLookup: string | null;
+};
+
 /** País SIEMPRE se obtiene de qr_country_lookup (el QR llega sin país). Compara el contenido del QR con la tabla. */
 async function enrichPaisFromLookup<T extends { pais?: string | null; rawPayload?: string | null }>(
   job: T | null,
   prisma: Parameters<typeof findPaisFromLookup>[0]
-): Promise<T | null> {
-  if (!job) return job;
+): Promise<{ job: T; debug: LookupDebug | null } | { job: null; debug: null }> {
+  if (!job) return { job: null, debug: null };
   const qrText = extractQrTextFromPayload(job.rawPayload);
   const candidates = qrLookupCandidates(qrText, job.rawPayload);
-  const pais = await findPaisFromLookup(prisma, candidates);
-  return { ...job, pais: pais ?? job.pais };
+  const paisFromLookup = await findPaisFromLookup(prisma, candidates);
+  const debug: LookupDebug = {
+    qrTextPreview: qrText.slice(0, 200),
+    candidatesCount: candidates.length,
+    candidatesPreview: candidates.slice(0, 5).map((c) => c.slice(0, 80) + (c.length > 80 ? "…" : "")),
+    paisFromLookup,
+  };
+  return {
+    job: { ...job, pais: paisFromLookup ?? job.pais } as T,
+    debug,
+  };
 }
 
 export async function GET(
@@ -65,7 +81,12 @@ export async function GET(
         if (job) job = hydrateJobFieldsFromRawPayload({ ...job, telefono: null });
       }
     }
-    if (job) job = await enrichPaisFromLookup(job, prisma);
+  let lookupDebug: LookupDebug | null = null;
+  if (job) {
+    const result = await enrichPaisFromLookup(job, prisma);
+    job = result.job;
+    lookupDebug = result.debug;
+  }
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     return NextResponse.json({ error: "Database error", detail: message }, { status: 500 });
@@ -81,6 +102,7 @@ export async function GET(
     rawPayload: job.rawPayload ?? null,
     createdAt: job.createdAt,
     printedAt: job.printedAt,
+    debugLookup: lookupDebug ?? undefined,
   });
 }
 

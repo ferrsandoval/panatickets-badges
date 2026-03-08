@@ -6,6 +6,13 @@ import QRCode from "qrcode";
 import { useParams, useSearchParams } from "next/navigation";
 import "./label-print.css";
 
+type LookupDebug = {
+  qrTextPreview: string;
+  candidatesCount: number;
+  candidatesPreview: string[];
+  paisFromLookup: string | null;
+};
+
 type Job = {
   id: string;
   name: string;
@@ -13,6 +20,7 @@ type Job = {
   telefono?: string | null;
   pais?: string | null;
   rawPayload?: string | null;
+  debugLookup?: LookupDebug | null;
 };
 
 function getExpoLabel(project: string | null): string | null {
@@ -119,7 +127,22 @@ export default function LabelPage() {
       <p className="label-debug-title">Información recibida (solo pantalla, no se imprime) — se actualiza con cada nueva etiqueta</p>
       <p><strong>URL de la API:</strong> {fetchUrl}</p>
       <p><strong>project (expo):</strong> {project ?? "(no enviado)"}</p>
-      <p><strong>pais en el job:</strong> {job.pais === undefined ? "undefined" : job.pais === null ? "null" : JSON.stringify(job.pais)}</p>
+      <p><strong>pais en el job (se imprime):</strong> {job.pais === undefined ? "undefined" : job.pais === null ? "null" : JSON.stringify(job.pais)}</p>
+      {job.debugLookup && (
+        <div style={{ marginTop: "1rem", padding: "0.75rem", background: "#0f172a", borderRadius: 8, border: "1px solid #334155" }}>
+          <p className="label-debug-title" style={{ marginBottom: "0.5rem" }}>Comparación con tabla QR → país</p>
+          <p style={{ margin: "0.25rem 0", fontSize: "0.85rem" }}><strong>Texto del QR (preview):</strong></p>
+          <pre style={{ margin: "0.25rem 0", fontSize: "0.75rem", overflow: "auto", maxHeight: 80 }}>{job.debugLookup.qrTextPreview || "(vacío)"}</pre>
+          <p style={{ margin: "0.5rem 0 0.25rem", fontSize: "0.85rem" }}><strong>Candidatos probados:</strong> {job.debugLookup.candidatesCount}</p>
+          <p style={{ margin: "0.25rem 0", fontSize: "0.85rem" }}><strong>País obtenido de la tabla lookup:</strong> {job.debugLookup.paisFromLookup ?? "(ninguno — no hubo coincidencia)"}</p>
+          {job.debugLookup.candidatesPreview.length > 0 && (
+            <>
+              <p style={{ margin: "0.5rem 0 0.25rem", fontSize: "0.85rem" }}><strong>Primeros candidatos (para comparar con tu CSV):</strong></p>
+              <pre style={{ margin: "0.25rem 0", fontSize: "0.7rem", overflow: "auto", maxHeight: 120 }}>{job.debugLookup.candidatesPreview.join("\n")}</pre>
+            </>
+          )}
+        </div>
+      )}
       <pre className="label-debug-json">{JSON.stringify(job, null, 2)}</pre>
     </div>
   );
