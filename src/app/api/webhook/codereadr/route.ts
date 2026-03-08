@@ -190,17 +190,21 @@ export async function POST(req: NextRequest) {
 
   const projectPrisma = getPrismaForProject(project);
 
-  // Lookup país desde tabla auxiliar de esta expo (QR completo)
+  // Lookup país desde tabla auxiliar de esta expo (QR completo); tiene que coincidir exactamente
   const qrNormalized = qrText.trim();
   let paisToUse: string | undefined = pais ?? undefined;
+  let paisSource: "lookup" | "qr" | null = pais ? "qr" : null;
   try {
     const lookup = await projectPrisma.qrCountryLookup.findUnique({
       where: { qrContent: qrNormalized },
       select: { pais: true },
     });
-    if (lookup?.pais) paisToUse = lookup.pais;
+    if (lookup?.pais) {
+      paisToUse = lookup.pais;
+      paisSource = "lookup";
+    } else if (pais) paisSource = "qr";
   } catch (_) {
-    // Si la tabla no existe aún, usar solo el parseado del QR
+    if (pais) paisSource = "qr";
   }
 
   try {
@@ -233,6 +237,7 @@ export async function POST(req: NextRequest) {
           ok: true,
           id: job.id,
           parsed: { name: nameTrimmed, empresa, telefono, email, pais: paisToUse },
+          paisSource,
           qrPreview: qrText.slice(0, 150),
         },
         { status: 201 }
@@ -259,7 +264,7 @@ export async function POST(req: NextRequest) {
             rawPayload
           );
           return NextResponse.json(
-            { ok: true, id, parsed: { name: nameTrimmed, empresa, telefono, email, pais: paisToUse }, qrPreview: qrText.slice(0, 150) },
+            { ok: true, id, parsed: { name: nameTrimmed, empresa, telefono, email, pais: paisToUse }, paisSource, qrPreview: qrText.slice(0, 150) },
             { status: 201 }
           );
         } catch (_e2) {
@@ -282,6 +287,7 @@ export async function POST(req: NextRequest) {
                 ok: true,
                 id,
                 parsed: { name: nameTrimmed, empresa, telefono, email, pais: paisToUse },
+                paisSource,
                 qrPreview: qrText.slice(0, 150),
                 warning: "Tabla sin columnas empresa/telefono/email. Ejecuta GET /api/setup-db?token=... para añadirlas.",
               },

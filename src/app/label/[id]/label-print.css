@@ -69,9 +69,10 @@
     font-weight: 400;
     text-transform: uppercase;
   }
-  /* Teléfono y Email */
+  /* Teléfono, Email, País */
   .label-line.label-telefono,
-  .label-line.label-email {
+  .label-line.label-email,
+  .label-line.label-pais {
     font-size: 13pt;
     font-weight: 400;
   }
@@ -138,7 +139,8 @@
     text-transform: uppercase;
   }
   .label-line.label-telefono,
-  .label-line.label-email {
+  .label-line.label-email,
+  .label-line.label-pais {
     font-size: 13pt;
     font-weight: 400;
   }

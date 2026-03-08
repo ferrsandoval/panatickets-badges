@@ -103,7 +103,7 @@ export default function LabelPage() {
   const lines = [
     { text: getLabelValue(job.name), className: "label-name" },
     { text: getLabelValue(job.empresa), className: "label-empresa" },
-    { text: getLabelValue(job.pais), className: "label-email" },
+    { text: getLabelValue(job.pais), className: "label-pais" },
     { text: getLabelValue(expoLabel), className: "label-expo" },
   ];
 
