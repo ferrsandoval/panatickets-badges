@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
         prisma.qrCountryLookup.count().catch(() => 0),
         prisma.printJob.findMany({
           where: onlyPrinted ? { printedAt: { not: null } } : undefined,
-          orderBy: { printedAt: "desc", createdAt: "desc" },
+          orderBy: [{ printedAt: "desc" }, { createdAt: "desc" }],
           take: 50,
           select: {
             id: true,
