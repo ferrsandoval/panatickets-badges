@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPrismaForProject } from "@/lib/prisma";
 import { parseEmpresaFromQrText, parsePaisFromQrText } from "@/lib/qr-parser";
+import type { PrismaClient } from "@prisma/client";
 
 function extractQrText(rawPayload: string | null | undefined): string {
   if (!rawPayload) return "";
@@ -17,6 +18,26 @@ function hydrateJobFieldsFromRawPayload<T extends { empresa?: string | null; pai
     empresa: job.empresa ?? parseEmpresaFromQrText(qrText),
     pais: job.pais ?? parsePaisFromQrText(qrText),
   };
+}
+
+/** Si el job no tiene pais, intenta obtenerlo de qr_country_lookup por el texto del QR. */
+async function enrichPaisFromLookup<T extends { pais?: string | null; rawPayload?: string | null }>(
+  job: T | null,
+  prisma: PrismaClient
+): Promise<T | null> {
+  if (!job || (job.pais != null && job.pais.trim() !== "")) return job;
+  const qrText = extractQrText(job.rawPayload).trim();
+  if (!qrText) return job;
+  try {
+    const lookup = await prisma.qrCountryLookup.findUnique({
+      where: { qrContent: qrText },
+      select: { pais: true },
+    });
+    if (lookup?.pais) return { ...job, pais: lookup.pais };
+  } catch {
+    // tabla puede no existir en este proyecto
+  }
+  return job;
 }
 
 export async function GET(
@@ -52,6 +73,7 @@ export async function GET(
         if (job) job = hydrateJobFieldsFromRawPayload({ ...job, telefono: null });
       }
     }
+    if (job) job = await enrichPaisFromLookup(job, prisma);
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     return NextResponse.json({ error: "Database error", detail: message }, { status: 500 });
