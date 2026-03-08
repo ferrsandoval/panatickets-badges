@@ -33,36 +33,57 @@ export function qrLookupCandidates(qrText: string, rawPayload?: string | null): 
   return Array.from(candidates);
 }
 
+const MAX_LOOKUP_ROWS = 15000;
+
+/** Normaliza para comparar: trim, minúsculas, espacios colapsados, sin \r. */
+function normalizeForMatch(s: string): string {
+  return s
+    .trim()
+    .toLowerCase()
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 /**
- * Busca el país en qr_country_lookup: primero coincidencia exacta,
- * luego por LOWER(TRIM(qr_content)) para ignorar mayúsculas y espacios.
+ * Obtiene el país desde qr_country_lookup: carga la tabla y compara en código
+ * con la misma normalización, para garantizar el match aunque haya diferencias de formato.
  */
 export async function findPaisFromLookup(
   prisma: PrismaClient,
   candidates: string[]
 ): Promise<string | null> {
   if (!candidates.length) return null;
+  let rows: { qrContent: string; pais: string }[];
   try {
-    const exact = await prisma.qrCountryLookup.findFirst({
-      where: { qrContent: { in: candidates } },
-      select: { pais: true },
+    rows = await prisma.qrCountryLookup.findMany({
+      take: MAX_LOOKUP_ROWS,
+      select: { qrContent: true, pais: true },
     });
-    if (exact?.pais) return exact.pais;
   } catch {
-    // tabla puede no existir
+    return null;
   }
-  const normalized = Array.from(
-    new Set(candidates.map((c) => c.toLowerCase().trim()).filter(Boolean))
+  if (!rows.length) return null;
+
+  const normalizedCandidates = Array.from(
+    new Set(candidates.map(normalizeForMatch).filter(Boolean))
   );
-  for (const c of normalized) {
-    try {
-      const rows = await prisma.$queryRawUnsafe<{ pais: string }[]>(
-        "SELECT pais FROM qr_country_lookup WHERE LOWER(TRIM(qr_content)) = $1 LIMIT 1",
-        c
-      );
-      if (rows[0]?.pais) return rows[0].pais;
-    } catch {
-      continue;
+  const lookupByNormalized = new Map<string, string>();
+  for (const row of rows) {
+    const key = normalizeForMatch(row.qrContent);
+    if (key && !lookupByNormalized.has(key)) lookupByNormalized.set(key, row.pais);
+  }
+
+  for (const nc of normalizedCandidates) {
+    const pais = lookupByNormalized.get(nc);
+    if (pais) return pais;
+  }
+
+  for (const nc of normalizedCandidates) {
+    for (const [tableKey, pais] of lookupByNormalized) {
+      if (nc.length >= 10 && tableKey.length >= 10 && (nc.includes(tableKey) || tableKey.includes(nc)))
+        return pais;
     }
   }
   return null;
