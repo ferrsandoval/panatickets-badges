@@ -5,7 +5,6 @@ import { qrLookupCandidates, findPaisFromLookup } from "@/lib/qr-lookup";
 import {
   parseNameFromQrText,
   parseEmpresaFromQrText,
-  parsePaisFromQrText,
   parseFeriaFromQrText,
   parseTelefonoFromQrText,
   parseEmailFromQrText,
@@ -160,7 +159,6 @@ export async function POST(req: NextRequest) {
 
   const name = parseNameFromQrText(qrText);
   const empresa = parseEmpresaFromQrText(qrText) ?? undefined;
-  const pais = parsePaisFromQrText(qrText) ?? undefined;
   const feria = parseFeriaFromQrText(qrText) ?? undefined;
   const telefono = parseTelefonoFromQrText(qrText) ?? undefined;
   const email = parseEmailFromQrText(qrText) ?? undefined;
@@ -191,12 +189,11 @@ export async function POST(req: NextRequest) {
 
   const projectPrisma = getPrismaForProject(project);
 
-  // Lookup país desde tabla qr_country_lookup (mismas variantes que en la etiqueta: exacto + LOWER/TRIM)
+  // País SIEMPRE se obtiene de qr_country_lookup (el QR llega sin país)
   const payloadVariant = point ? `[point:${point}]\n${qrText.slice(0, 2000)}` : qrText.slice(0, 2000);
   const lookupCandidates = qrLookupCandidates(qrText.trim(), payloadVariant);
-  const lookupPais = await findPaisFromLookup(projectPrisma, lookupCandidates);
-  let paisToUse: string | undefined = lookupPais ?? pais ?? undefined;
-  const paisSource: "lookup" | "qr" | null = lookupPais ? "lookup" : pais ? "qr" : null;
+  const paisToUse: string | undefined = (await findPaisFromLookup(projectPrisma, lookupCandidates)) ?? undefined;
+  const paisSource: "lookup" | "qr" | null = paisToUse ? "lookup" : null;
 
   try {
     try {

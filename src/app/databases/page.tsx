@@ -55,6 +55,7 @@ function DatabasesContent() {
     setError(null);
     const url = new URL("/api/admin/db-stats", window.location.origin);
     url.searchParams.set("project", selectedProject);
+    url.searchParams.set("printed", "true");
     fetch(url.toString())
       .then((r) => {
         if (!r.ok) return r.json().then((d) => Promise.reject(new Error(d.detail ?? d.error ?? r.statusText)));
@@ -338,13 +339,16 @@ function DatabasesContent() {
             <h2 style={{ margin: 0, padding: "1rem", fontSize: "1rem", borderBottom: "1px solid #334155" }}>
               Últimos registros en <strong>{currentLabel}</strong>
             </h2>
+            <p style={{ margin: 0, padding: "0.5rem 1rem", fontSize: "0.8rem", color: "#94a3b8", borderBottom: "1px solid #334155" }}>
+              Etiquetas ya impresas. El país se obtiene de la tabla QR → país (lookup) comparando el contenido del QR.
+            </p>
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
                 <thead>
                   <tr style={{ background: "#1e293b", color: "#94a3b8" }}>
                     <th style={{ textAlign: "left", padding: "0.6rem 0.75rem" }}>Nombre</th>
                     <th style={{ textAlign: "left", padding: "0.6rem 0.75rem" }}>Empresa</th>
-                    <th style={{ textAlign: "left", padding: "0.6rem 0.75rem" }}>País</th>
+                    <th style={{ textAlign: "left", padding: "0.6rem 0.75rem" }}>País (desde tabla QR)</th>
                     <th style={{ textAlign: "left", padding: "0.6rem 0.75rem" }}>Creado</th>
                     <th style={{ textAlign: "left", padding: "0.6rem 0.75rem" }}>Impreso</th>
                   </tr>

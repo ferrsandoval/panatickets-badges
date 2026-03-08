@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPrismaForProject } from "@/lib/prisma";
+import {
+  extractQrTextFromPayload,
+  qrLookupCandidates,
+  findPaisFromLookup,
+} from "@/lib/qr-lookup";
 
 const MISSING_ENV_PATTERN = /no se encontró una variable de entorno válida/i;
 
@@ -10,6 +15,7 @@ const MISSING_ENV_PATTERN = /no se encontró una variable de entorno válida/i;
  */
 export async function GET(req: NextRequest) {
   const project = req.nextUrl.searchParams.get("project")?.trim();
+  const onlyPrinted = req.nextUrl.searchParams.get("printed") === "true";
   if (!project) {
     return NextResponse.json(
       { error: "Falta project", detail: "Añade ?project=expo_logistica_2026 (o otra expo)." },
@@ -43,19 +49,21 @@ export async function GET(req: NextRequest) {
 
   try {
 
-    const [printJobsTotal, printJobsPending, qrCountryLookupCount, recentJobs, qrCountryLookupRows] =
+    const [printJobsTotal, printJobsPending, qrCountryLookupCount, recentJobsRaw, qrCountryLookupRows] =
       await Promise.all([
         prisma.printJob.count(),
         prisma.printJob.count({ where: { printedAt: null } }),
         prisma.qrCountryLookup.count().catch(() => 0),
         prisma.printJob.findMany({
-          orderBy: { createdAt: "desc" },
+          where: onlyPrinted ? { printedAt: { not: null } } : undefined,
+          orderBy: { printedAt: "desc", createdAt: "desc" },
           take: 50,
           select: {
             id: true,
             name: true,
             empresa: true,
             pais: true,
+            rawPayload: true,
             createdAt: true,
             printedAt: true,
           },
@@ -67,20 +75,34 @@ export async function GET(req: NextRequest) {
         }).catch(() => []),
       ]);
 
+    // País se obtiene siempre de la tabla qr_country_lookup (comparando con el contenido del QR)
+    const recentJobs = await Promise.all(
+      recentJobsRaw.map(async (j) => {
+        const candidates = qrLookupCandidates(
+          extractQrTextFromPayload(j.rawPayload),
+          j.rawPayload ?? undefined
+        );
+        const paisFromLookup = await findPaisFromLookup(prisma, candidates);
+        const pais = paisFromLookup ?? j.pais ?? null;
+        return {
+          id: j.id,
+          name: j.name,
+          empresa: j.empresa ?? null,
+          pais,
+          createdAt: j.createdAt.toISOString(),
+          printedAt: j.printedAt?.toISOString() ?? null,
+        };
+      })
+    );
+
     return NextResponse.json({
       project,
       usingDefaultDatabase,
+      onlyPrinted,
       printJobsTotal,
       printJobsPending,
       qrCountryLookupCount,
-      recentJobs: recentJobs.map((j) => ({
-        id: j.id,
-        name: j.name,
-        empresa: j.empresa ?? null,
-        pais: j.pais ?? null,
-        createdAt: j.createdAt.toISOString(),
-        printedAt: j.printedAt?.toISOString() ?? null,
-      })),
+      recentJobs,
       qrCountryLookup: qrCountryLookupRows.map((r) => ({ qrContent: r.qrContent, pais: r.pais })),
     });
   } catch (e) {

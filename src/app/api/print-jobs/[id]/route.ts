@@ -5,7 +5,7 @@ import {
   qrLookupCandidates,
   findPaisFromLookup,
 } from "@/lib/qr-lookup";
-import { parseEmpresaFromQrText, parsePaisFromQrText } from "@/lib/qr-parser";
+import { parseEmpresaFromQrText } from "@/lib/qr-parser";
 
 function hydrateJobFieldsFromRawPayload<T extends { empresa?: string | null; pais?: string | null; rawPayload?: string | null }>(
   job: T | null
@@ -15,21 +15,21 @@ function hydrateJobFieldsFromRawPayload<T extends { empresa?: string | null; pai
   return {
     ...job,
     empresa: job.empresa ?? parseEmpresaFromQrText(qrText),
-    pais: job.pais ?? parsePaisFromQrText(qrText),
+    // país no se rellena aquí: siempre viene de qr_country_lookup (enrichPaisFromLookup)
+    pais: job.pais,
   };
 }
 
-/** Si el job no tiene pais, intenta obtenerlo de qr_country_lookup comparando el QR con la tabla. */
+/** País SIEMPRE se obtiene de qr_country_lookup (el QR llega sin país). Compara el contenido del QR con la tabla. */
 async function enrichPaisFromLookup<T extends { pais?: string | null; rawPayload?: string | null }>(
   job: T | null,
   prisma: Parameters<typeof findPaisFromLookup>[0]
 ): Promise<T | null> {
-  if (!job || (job.pais != null && job.pais.trim() !== "")) return job;
+  if (!job) return job;
   const qrText = extractQrTextFromPayload(job.rawPayload);
   const candidates = qrLookupCandidates(qrText, job.rawPayload);
   const pais = await findPaisFromLookup(prisma, candidates);
-  if (pais) return { ...job, pais };
-  return job;
+  return { ...job, pais: pais ?? job.pais };
 }
 
 export async function GET(
