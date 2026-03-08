@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import QRCode from "qrcode";
 import { useParams, useSearchParams } from "next/navigation";
 import "./label-print.css";
 
@@ -10,6 +11,7 @@ type Job = {
   empresa?: string | null;
   telefono?: string | null;
   pais?: string | null;
+  rawPayload?: string | null;
 };
 
 function getExpoLabel(project: string | null): string | null {
@@ -33,12 +35,18 @@ function getLabelValue(value: string | null | undefined): string {
   return value?.trim() || "";
 }
 
+function extractQrText(rawPayload: string | null | undefined): string {
+  if (!rawPayload) return "";
+  return rawPayload.replace(/^\[point:[^\]]+\]\s*/i, "").trim();
+}
+
 export default function LabelPage() {
   const params = useParams();
   const id = params.id as string;
   const searchParams = useSearchParams();
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
+  const [qrDataUrl, setQrDataUrl] = useState<string>("");
 
   useEffect(() => {
     const project = searchParams.get("project");
@@ -58,6 +66,35 @@ export default function LabelPage() {
     return () => clearTimeout(t);
   }, [job]);
 
+  useEffect(() => {
+    const qrText = extractQrText(job?.rawPayload);
+    if (!qrText) {
+      setQrDataUrl("");
+      return;
+    }
+
+    let cancelled = false;
+    QRCode.toDataURL(qrText, {
+      errorCorrectionLevel: "M",
+      margin: 0,
+      width: 180,
+    })
+      .then((dataUrl) => {
+        if (!cancelled) {
+          setQrDataUrl(dataUrl);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setQrDataUrl("");
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [job]);
+
   if (loading) return <div className="label-page">Cargando…</div>;
   if (!job) return <div className="label-page">No encontrado</div>;
 
@@ -72,12 +109,17 @@ export default function LabelPage() {
 
   return (
     <div className="label-page">
-      <div className="label-content">
-        {lines.map((line, i) => (
-          <div key={i} className={`label-line ${line.className}`}>
-            {line.text}
-          </div>
-        ))}
+      <div className="label-layout">
+        <div className="label-content">
+          {lines.map((line, i) => (
+            <div key={i} className={`label-line ${line.className}`}>
+              {line.text}
+            </div>
+          ))}
+        </div>
+        <div className="label-qr">
+          {qrDataUrl ? <img src={qrDataUrl} alt="QR" className="label-qr-image" /> : null}
+        </div>
       </div>
     </div>
   );
