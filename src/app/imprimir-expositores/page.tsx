@@ -48,10 +48,8 @@ function getParsedFieldsFromQrContent(qrContent: string): {
 }
 
 /**
- * Campos a mostrar e imprimir en EXPOSITORES:
- * - Nombre: desde la columna QR Content (qr_content).
- * - Empresa: desde la columna Empresa (empresa).
- * - País: desde la columna País (pais).
+ * EXPOSITORES: Columna 1 = texto con Nombre='...'; Empresa=''; etc. Columna 2 = País. Columna 3 = Empresa.
+ * Extrae Nombre (y opcionalmente Email, Teléfono) de la columna 1; Empresa y País de las columnas de la tabla.
  */
 function getDisplayFields(row: RowWithProject): {
   name: string;
@@ -61,10 +59,13 @@ function getDisplayFields(row: RowWithProject): {
   email: string;
 } {
   if (isExpositoresProject(row.projectKey)) {
-    const name = (row.qrContent ?? "").trim().slice(0, 80);
+    const qrText = (extractQrTextFromPayload(row.qrContent) || row.qrContent ?? "").trim();
+    const name = (parseNameFromQrText(qrText) ?? "").trim().slice(0, 80);
     const empresa = (row.empresa ?? "").trim();
     const pais = (row.pais ?? "").trim();
-    return { name, empresa, pais, telefono: "", email: "" };
+    const telefono = (parseTelefonoFromQrText(qrText) ?? "").trim().slice(0, 40);
+    const email = (parseEmailFromQrText(qrText) ?? "").trim().slice(0, 80);
+    return { name, empresa, pais, telefono, email };
   }
   const parsed = getParsedFieldsFromQrContent(row.qrContent);
   return {
@@ -231,7 +232,7 @@ function ImprimirExpositoresContent() {
       </section>
 
       <p style={{ margin: "0 0 1rem", color: "#94a3b8", fontSize: "0.9rem" }}>
-        Datos de las 5 bases <strong>expositores</strong>. Nombre = columna QR Content; Empresa y País = columnas de la tabla (CSV de 3 columnas). La etiqueta se imprime con el mismo formato.
+        Datos de las 5 bases <strong>expositores</strong>. Columna 1: texto con Nombre, Email, Celular (se extraen). Columna 2: País. Columna 3: Empresa.
       </p>
 
       {error && (
@@ -342,7 +343,7 @@ function ImprimirExpositoresContent() {
           QR Content — datos filtrados y con formato de impresión
         </h2>
         <p style={{ margin: 0, padding: "0.5rem 1.25rem", fontSize: "0.8rem", color: "#94a3b8", borderBottom: "1px solid #334155" }}>
-          Bases <strong>EXPOSITORES</strong> (formato CSV: QR Content, Empresa, País). <strong>Nombre</strong> = columna QR Content; <strong>Empresa</strong> = columna Empresa; <strong>País</strong> = columna País. Busca por cualquier campo. Imprimir = mismo formato. Ctrl+P.
+          Columna 1: se extrae Nombre, Email y Teléfono/Celular. Columna 2: País. Columna 3: Empresa. Busca por cualquier campo. Imprimir = mismo formato. Ctrl+P.
         </p>
         <div style={tableStyles.wrapper}>
           <table style={tableStyles.table}>
