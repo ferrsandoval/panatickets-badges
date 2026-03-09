@@ -3,6 +3,7 @@ import { readdir, readFile } from "fs/promises";
 import { join } from "path";
 import { getPrismaForProject } from "@/lib/prisma";
 import { parseCsvText } from "@/lib/csv-qr-pais";
+import { upsertQrLookupRows } from "@/lib/qr-lookup-upsert";
 
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 
@@ -75,17 +76,8 @@ export async function GET(req: NextRequest) {
       const rows = parseCsvText(text, {
         format: isExpositores ? "expositores" : "invitados",
       });
-      for (const { qrContent, pais, empresa } of rows) {
-        const normalized = qrContent.trim();
-        if (!normalized) continue;
-        const empresaVal = empresa != null && empresa !== "" ? empresa.trim() : null;
-        await prisma.qrCountryLookup.upsert({
-          where: { qrContent: normalized },
-          create: { qrContent: normalized, pais: pais.trim(), empresa: empresaVal },
-          update: { pais: pais.trim(), empresa: empresaVal },
-        });
-        totalRows++;
-      }
+      await upsertQrLookupRows(prisma, rows);
+      totalRows += rows.length;
       byFile[file] = { project, rows: rows.length };
     }
     return NextResponse.json({

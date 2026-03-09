@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPrismaForProject } from "@/lib/prisma";
 import { parseCsvText } from "@/lib/csv-qr-pais";
+import { upsertQrLookupRows } from "@/lib/qr-lookup-upsert";
 
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 
@@ -57,19 +58,12 @@ export async function POST(req: NextRequest) {
 
   try {
     const prisma = getPrismaForProject(project);
-    for (const { qrContent, pais, empresa } of rows) {
-      const normalized = qrContent.trim();
-      if (!normalized) continue;
-      const empresaVal = empresa != null && empresa !== "" ? empresa.trim() : null;
-      await prisma.qrCountryLookup.upsert({
-        where: { qrContent: normalized },
-        create: { qrContent: normalized, pais: pais.trim(), empresa: empresaVal },
-        update: { pais: pais.trim(), empresa: empresaVal },
-      });
-    }
+    const useRaw = await upsertQrLookupRows(prisma, rows);
     return NextResponse.json({
       ok: true,
-      message: `CSV importado a qr_country_lookup del proyecto "${project}".`,
+      message: useRaw
+        ? `CSV importado (solo qr_content, pais; la base no tiene columna empresa). Proyecto "${project}".`
+        : `CSV importado a qr_country_lookup del proyecto "${project}".`,
       project,
       total: rows.length,
     });

@@ -59,24 +59,23 @@ export type ParseCsvOptions = {
 
 /**
  * Parsea texto CSV completo.
- * Invitados: cabecera qr_content,pais (2 columnas), se detecta y se salta si hay.
- * Expositores: 3 columnas (QR Content, País, Empresa). No se verifica cabecera: todas las líneas se tratan como datos.
+ * Invitados y Expositores: no se verifica cabecera. Todas las líneas se tratan como datos.
+ * Invitados: 2 columnas (QR Content, País). Expositores: 3 columnas (QR Content, País, Empresa).
  */
 export function parseCsvText(text: string, options?: ParseCsvOptions): CsvQrPaisRow[] {
   const format = options?.format ?? "auto";
   const lines = text.split(/\r?\n/).filter((l) => l.trim());
   const hasEmpresa =
     format === "expositores" ? true : format === "invitados" ? false : detectEmpresaHeader(lines[0] ?? "");
-  const header = lines[0] ?? "";
-  const headerNorm = normalizeHeader(header);
-  const hasHeaderInvitados =
-    (headerNorm.includes("qr_content") || headerNorm.includes("qr content")) && headerNorm.includes("pais");
   const dataLines =
-    format === "expositores"
+    format === "expositores" || format === "invitados"
       ? lines
-      : hasHeaderInvitados
-        ? lines.slice(1)
-        : lines;
+      : (() => {
+          const headerNorm = normalizeHeader(lines[0] ?? "");
+          const hasHeader =
+            (headerNorm.includes("qr_content") || headerNorm.includes("qr content")) && headerNorm.includes("pais");
+          return hasHeader ? lines.slice(1) : lines;
+        })();
   const rows: CsvQrPaisRow[] = [];
   for (const line of dataLines) {
     const row = parseCsvLine(line, hasEmpresa);

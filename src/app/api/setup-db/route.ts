@@ -62,6 +62,7 @@ export async function GET(req: NextRequest) {
       CREATE TABLE IF NOT EXISTS "qr_country_lookup" (
         "id" TEXT NOT NULL,
         "qr_content" TEXT NOT NULL,
+        "empresa" TEXT,
         "pais" TEXT NOT NULL,
         "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         CONSTRAINT "qr_country_lookup_pkey" PRIMARY KEY ("id")
