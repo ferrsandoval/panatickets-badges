@@ -45,10 +45,8 @@ export async function POST(req: NextRequest) {
   }
 
   const isExpositores = project.includes("expositores");
-  const isLogisticaExpositores = project === "expo_logistica_expositores_2026";
   const rows = parseCsvText(text, {
     format: isExpositores ? "expositores" : "invitados",
-    expositoresColumnOrder: isLogisticaExpositores ? "empresa_pais" : "pais_empresa",
   });
 
   if (rows.length === 0) {
