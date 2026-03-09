@@ -10,28 +10,19 @@ import {
   parseEmailFromQrText,
 } from "@/lib/qr-parser";
 import { hasUnprintableOrRisky } from "@/lib/print-text";
-import { PROJECTS_EXPOSITORES } from "@/lib/print-projects";
+import { PROJECTS_INVITADOS } from "@/lib/print-projects";
 
-const PROJECTS = PROJECTS_EXPOSITORES;
+const PROJECTS = PROJECTS_INVITADOS;
 
 type QrLookupRow = { qrContent: string; pais: string; empresa?: string };
 
 type RowWithProject = QrLookupRow & { projectKey: string; projectLabel: string };
-
-/** Indica si la base es de tipo EXPOSITORES (formato CSV: QR Content, Empresa, País). */
-function isExpositoresProject(projectKey: string): boolean {
-  return projectKey.includes("expositores");
-}
 
 /** Normaliza texto para búsqueda: trim, minúsculas, espacios colapsados. */
 function normalizeForSearch(s: string): string {
   return (s ?? "").trim().toLowerCase().replace(/\s+/g, " ");
 }
 
-/**
- * Obtiene y filtra la información del QR Content usando el mismo parser que CodeREADr.
- * Quita prefijo [point:xxx] y extrae nombre, empresa, teléfono, email.
- */
 function getParsedFieldsFromQrContent(qrContent: string): {
   qrText: string;
   name: string;
@@ -47,11 +38,7 @@ function getParsedFieldsFromQrContent(qrContent: string): {
   return { qrText, name, empresa, telefono, email };
 }
 
-/**
- * Campos a mostrar e imprimir según tipo de base.
- * - Expos normales: nombre, empresa, teléfono, email del parser del QR; país de la tabla.
- * - Expos EXPOSITORES: Empresa y País de la tabla (CSV 3 columnas); Nombre = QR Content o parser si hay.
- */
+/** Invitados: siempre parser del QR + país de la tabla. */
 function getDisplayFields(row: RowWithProject): {
   name: string;
   empresa: string;
@@ -61,11 +48,6 @@ function getDisplayFields(row: RowWithProject): {
 } {
   const parsed = getParsedFieldsFromQrContent(row.qrContent);
   const pais = (row.pais ?? "").trim();
-  if (isExpositoresProject(row.projectKey)) {
-    const empresa = (row.empresa ?? "").trim() || parsed.empresa;
-    const name = parsed.name || row.qrContent.trim().slice(0, 80);
-    return { name, empresa, pais, telefono: parsed.telefono, email: parsed.email };
-  }
   return {
     name: parsed.name,
     empresa: parsed.empresa,
@@ -118,15 +100,15 @@ const tableStyles = {
   },
 };
 
-export default function ImprimirExpositoresPage() {
+export default function ImprimirInvitadosPage() {
   return (
     <Suspense fallback={<p style={{ margin: "2rem auto", maxWidth: 900 }}>Cargando…</p>}>
-      <ImprimirExpositoresContent />
+      <ImprimirInvitadosContent />
     </Suspense>
   );
 }
 
-function ImprimirExpositoresContent() {
+function ImprimirInvitadosContent() {
   const [allRows, setAllRows] = useState<RowWithProject[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -226,11 +208,11 @@ function ImprimirExpositoresContent() {
         <Link href="/" style={{ color: "#38bdf8", textDecoration: "none", fontSize: "0.9rem" }}>
           ← Cola de impresión
         </Link>
-        <h1 style={{ margin: 0, fontSize: "1.5rem", color: "#e2e8f0" }}>Imprimir expositores</h1>
+        <h1 style={{ margin: 0, fontSize: "1.5rem", color: "#e2e8f0" }}>Imprimir invitados</h1>
       </section>
 
       <p style={{ margin: "0 0 1rem", color: "#94a3b8", fontSize: "0.9rem" }}>
-        Datos de la tabla <strong>QR Content</strong> cargados para comparar (por base de datos). De aquí se obtienen las bases y el contenido; la etiqueta se imprime con el mismo formato que cuando se lee con CodeREADr.
+        Datos de la tabla <strong>QR Content</strong> de las 5 expos (invitados). Nombre, Empresa, Teléfono y Email del parser del QR; País de la tabla. La etiqueta se imprime con el mismo formato que cuando se lee con CodeREADr.
       </p>
 
       {error && (
@@ -324,7 +306,7 @@ function ImprimirExpositoresContent() {
           </div>
         </div>
         <p style={{ margin: "0.75rem 0 0", fontSize: "0.8rem", color: "#64748b" }}>
-          {loading ? "Cargando QR content de las bases expositores…" : `${filteredRows.length} de ${allRows.length} filas`}
+          {loading ? "Cargando QR content de las bases de invitados…" : `${filteredRows.length} de ${allRows.length} filas`}
         </p>
       </section>
 
@@ -338,10 +320,10 @@ function ImprimirExpositoresContent() {
         }}
       >
         <h2 style={{ margin: 0, padding: "1rem 1.25rem", fontSize: "1.05rem", borderBottom: "1px solid #334155", color: "#e2e8f0" }}>
-          QR Content — datos filtrados y con formato de impresión
+          QR Content — invitados (5 expos)
         </h2>
         <p style={{ margin: 0, padding: "0.5rem 1.25rem", fontSize: "0.8rem", color: "#94a3b8", borderBottom: "1px solid #334155" }}>
-          Bases <strong>EXPOSITORES</strong> (formato CSV QR Content, Empresa, País). Empresa y País desde la tabla; Nombre = QR Content o parser si hay. Busca por cualquier campo. Imprimir = mismo formato. Ctrl+P.
+          Nombre, Empresa, Teléfono, Email del parser del QR; País de la tabla (CSV qr_content, pais). Busca por cualquier campo. Imprimir = mismo formato. Ctrl+P.
         </p>
         <div style={tableStyles.wrapper}>
           <table style={tableStyles.table}>
@@ -361,7 +343,7 @@ function ImprimirExpositoresContent() {
               {loading && allRows.length === 0 ? (
                 <tr>
                   <td colSpan={8} style={{ padding: "2rem", color: "#64748b", textAlign: "center" }}>
-                    Cargando QR content de las bases expositores…
+                    Cargando QR content de las bases de invitados…
                   </td>
                 </tr>
               ) : filteredRows.length === 0 ? (
