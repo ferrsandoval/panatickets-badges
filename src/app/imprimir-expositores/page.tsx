@@ -59,7 +59,7 @@ function getDisplayFields(row: RowWithProject): {
   email: string;
 } {
   if (isExpositoresProject(row.projectKey)) {
-    const qrText = (extractQrTextFromPayload(row.qrContent) || row.qrContent ?? "").trim();
+    const qrText = ((extractQrTextFromPayload(row.qrContent) || row.qrContent) ?? "").trim();
     const name = (parseNameFromQrText(qrText) ?? "").trim().slice(0, 80);
     const empresa = (row.empresa ?? "").trim();
     const pais = (row.pais ?? "").trim();
