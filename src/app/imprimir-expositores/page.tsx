@@ -16,11 +16,61 @@ const PROJECTS = [
   { key: "expo_electronica_expositores_2026", label: "EXPO ELECTRÓNICA EXPOSITORES 2026" },
 ] as const;
 
-type QrLookupRow = { qrContent: string; pais: string };
+type PrintJobRow = {
+  id: string;
+  name: string;
+  empresa: string | null;
+  telefono: string | null;
+  email: string | null;
+  pais: string | null;
+  createdAt: string;
+  printedAt: string | null;
+};
 
-type RowWithProject = QrLookupRow & { projectKey: string; projectLabel: string };
+type JobWithProject = PrintJobRow & { projectKey: string; projectLabel: string };
 
-const LIMIT_PER_PROJECT = 3000;
+const LIMIT_PER_PROJECT = 500;
+
+const tableStyles = {
+  wrapper: {
+    overflowX: "auto" as const,
+    maxHeight: "65vh",
+    overflowY: "auto" as const,
+  },
+  table: {
+    width: "100%" as const,
+    borderCollapse: "collapse" as const,
+    fontSize: "0.875rem",
+  },
+  thead: {
+    position: "sticky" as const,
+    top: 0,
+    background: "#1e293b",
+    zIndex: 1,
+    boxShadow: "0 1px 0 0 #334155",
+  },
+  th: {
+    textAlign: "left" as const,
+    padding: "0.75rem 0.85rem",
+    color: "#94a3b8",
+    fontWeight: 600,
+    fontSize: "0.8rem",
+    textTransform: "uppercase" as const,
+    letterSpacing: "0.04em",
+    borderBottom: "2px solid #334155",
+    whiteSpace: "nowrap" as const,
+  },
+  td: {
+    padding: "0.7rem 0.85rem",
+    borderBottom: "1px solid #1e293b",
+    color: "#e2e8f0",
+    verticalAlign: "middle" as const,
+  },
+  tdMuted: {
+    color: "#94a3b8",
+    fontSize: "0.85rem",
+  },
+};
 
 export default function ImprimirExpositoresPage() {
   return (
@@ -31,70 +81,70 @@ export default function ImprimirExpositoresPage() {
 }
 
 function ImprimirExpositoresContent() {
-  const [allRows, setAllRows] = useState<RowWithProject[]>([]);
+  const [allJobs, setAllJobs] = useState<JobWithProject[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterBase, setFilterBase] = useState<string>("");
 
-  const fetchAllQrLookup = useCallback(() => {
+  const fetchAllBases = useCallback(() => {
     setLoading(true);
     setError(null);
     Promise.all(
       PROJECTS.map(({ key, label }) => {
-        const url = new URL("/api/admin/qr-lookup", window.location.origin);
+        const url = new URL("/api/print-jobs", window.location.origin);
         url.searchParams.set("project", key);
+        url.searchParams.set("printed", "all");
         url.searchParams.set("limit", String(LIMIT_PER_PROJECT));
         return fetch(url.toString())
-          .then((r) => (r.ok ? r.json() : Promise.resolve({ qrLookup: [] })))
-          .then((data: { qrLookup?: QrLookupRow[] }) =>
-            (data.qrLookup ?? []).map((row) => ({
-              ...row,
+          .then((r) => (r.ok ? r.json() : Promise.resolve([])))
+          .then((data: PrintJobRow[]) =>
+            data.map((j) => ({
+              ...j,
               projectKey: key,
               projectLabel: label,
             }))
           );
       })
     )
-      .then((arrays) => setAllRows(arrays.flat()))
+      .then((arrays) => setAllJobs(arrays.flat()))
       .catch((e) => {
         setError(e instanceof Error ? e.message : String(e));
-        setAllRows([]);
+        setAllJobs([]);
       })
       .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
-    fetchAllQrLookup();
-  }, [fetchAllQrLookup]);
+    fetchAllBases();
+  }, [fetchAllBases]);
 
   const searchLower = searchQuery.trim().toLowerCase();
-  const filteredRows = useMemo(() => {
-    let list = allRows;
-    if (filterBase) {
-      list = list.filter((r) => r.projectKey === filterBase);
-    }
+  const filteredJobs = useMemo(() => {
+    let list = allJobs;
+    if (filterBase) list = list.filter((j) => j.projectKey === filterBase);
     if (searchLower) {
       list = list.filter(
-        (r) =>
-          (r.qrContent ?? "").toLowerCase().includes(searchLower) ||
-          (r.pais ?? "").toLowerCase().includes(searchLower) ||
-          (r.projectLabel ?? "").toLowerCase().includes(searchLower)
+        (j) =>
+          (j.name ?? "").toLowerCase().includes(searchLower) ||
+          (j.empresa ?? "").toLowerCase().includes(searchLower) ||
+          (j.telefono ?? "").toLowerCase().includes(searchLower) ||
+          (j.email ?? "").toLowerCase().includes(searchLower) ||
+          (j.pais ?? "").toLowerCase().includes(searchLower) ||
+          (j.projectLabel ?? "").toLowerCase().includes(searchLower)
       );
     }
     return list;
-  }, [allRows, filterBase, searchLower]);
+  }, [allJobs, filterBase, searchLower]);
 
-  const openPrintLabel = (row: RowWithProject) => {
-    const labelUrl = new URL("/label/directo", window.location.origin);
-    labelUrl.searchParams.set("project", row.projectKey);
-    labelUrl.searchParams.set("qr_content", encodeURIComponent(row.qrContent));
-    labelUrl.searchParams.set("pais", encodeURIComponent(row.pais));
+  const openPrintLabel = (jobId: string, projectKey: string) => {
+    const labelUrl = new URL(`/label/${jobId}`, window.location.origin);
+    labelUrl.searchParams.set("project", projectKey);
     window.open(labelUrl.toString(), "_blank", "noopener,noreferrer,width=420,height=380");
   };
 
   return (
-    <main style={{ maxWidth: 1200, margin: "0 auto", padding: "1rem" }}>
+    <main style={{ maxWidth: 1280, margin: "0 auto", padding: "1rem" }}>
       <section
         style={{
           display: "flex",
@@ -108,21 +158,14 @@ function ImprimirExpositoresContent() {
             "linear-gradient(135deg, rgba(2,6,23,0.96) 0%, rgba(15,23,42,0.96) 60%, rgba(8,47,73,0.96) 100%)",
         }}
       >
-        <Link
-          href="/"
-          style={{
-            color: "#38bdf8",
-            textDecoration: "none",
-            fontSize: "0.9rem",
-          }}
-        >
+        <Link href="/" style={{ color: "#38bdf8", textDecoration: "none", fontSize: "0.9rem" }}>
           ← Cola de impresión
         </Link>
         <h1 style={{ margin: 0, fontSize: "1.5rem", color: "#e2e8f0" }}>Imprimir expositores</h1>
       </section>
 
       <p style={{ margin: "0 0 1rem", color: "#94a3b8", fontSize: "0.9rem" }}>
-        Contenido de la tabla <strong>QR → país</strong> cargado en cada base (CSV). Son los datos que se usan para comparar el QR y obtener empresa/país. Imprime la etiqueta directamente desde aquí, sin CodeREADr.
+        Registros cargados en las bases de datos (mismo formato que al leer con CodeREADr). Imprime la etiqueta con el mismo diseño.
       </p>
 
       {error && (
@@ -158,12 +201,12 @@ function ImprimirExpositoresContent() {
             <input
               id="search"
               type="search"
-              placeholder="QR content, país o base…"
+              placeholder="Nombre, teléfono, email, empresa, país o base…"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{
                 width: "100%",
-                padding: "0.5rem 0.75rem",
+                padding: "0.55rem 0.75rem",
                 fontSize: "0.9rem",
                 background: "#1e293b",
                 color: "#e2e8f0",
@@ -182,7 +225,7 @@ function ImprimirExpositoresContent() {
               onChange={(e) => setFilterBase(e.target.value)}
               style={{
                 width: "100%",
-                padding: "0.5rem 0.75rem",
+                padding: "0.55rem 0.75rem",
                 fontSize: "0.9rem",
                 background: "#1e293b",
                 color: "#e2e8f0",
@@ -200,7 +243,7 @@ function ImprimirExpositoresContent() {
           </div>
         </div>
         <p style={{ margin: "0.75rem 0 0", fontSize: "0.8rem", color: "#64748b" }}>
-          {loading ? "Cargando tablas QR → país de todas las bases…" : `${filteredRows.length} de ${allRows.length} filas`}
+          {loading ? "Cargando todas las bases…" : `${filteredJobs.length} de ${allJobs.length} registros`}
         </p>
       </section>
 
@@ -210,72 +253,71 @@ function ImprimirExpositoresContent() {
           borderRadius: 12,
           background: "#0f172a",
           overflow: "hidden",
+          boxShadow: "0 4px 6px -1px rgba(0,0,0,0.2), 0 2px 4px -2px rgba(0,0,0,0.15)",
         }}
       >
-        <h2 style={{ margin: 0, padding: "1rem", fontSize: "1rem", borderBottom: "1px solid #334155", color: "#e2e8f0" }}>
-          QR Content cargado (tabla QR → país)
+        <h2 style={{ margin: 0, padding: "1rem 1.25rem", fontSize: "1.05rem", borderBottom: "1px solid #334155", color: "#e2e8f0" }}>
+          Registros — imprimir mismo formato que CodeREADr
         </h2>
-        <p style={{ margin: 0, padding: "0.5rem 1rem", fontSize: "0.8rem", color: "#94a3b8", borderBottom: "1px solid #334155" }}>
-          Clic en &quot;Imprimir&quot; abre la etiqueta con este contenido y país. Imprime con Ctrl+P (o Cmd+P).
+        <p style={{ margin: 0, padding: "0.5rem 1.25rem", fontSize: "0.8rem", color: "#94a3b8", borderBottom: "1px solid #334155" }}>
+          Clic en &quot;Imprimir&quot; abre la etiqueta con el mismo diseño (nombre, empresa, país, QR, expo). Ctrl+P para imprimir.
         </p>
-        <div style={{ overflowX: "auto", maxHeight: "65vh", overflowY: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
-            <thead style={{ position: "sticky", top: 0, background: "#1e293b", zIndex: 1 }}>
-              <tr style={{ color: "#94a3b8" }}>
-                <th style={{ textAlign: "left", padding: "0.6rem 0.75rem" }}>Base de datos</th>
-                <th style={{ textAlign: "left", padding: "0.6rem 0.75rem" }}>QR Content</th>
-                <th style={{ textAlign: "left", padding: "0.6rem 0.75rem", width: 120 }}>País</th>
-                <th style={{ textAlign: "right", padding: "0.6rem 0.75rem" }}>Acción</th>
+        <div style={tableStyles.wrapper}>
+          <table style={tableStyles.table}>
+            <thead style={tableStyles.thead}>
+              <tr>
+                <th style={{ ...tableStyles.th, minWidth: 160 }}>Base de datos</th>
+                <th style={{ ...tableStyles.th, minWidth: 140 }}>Nombre</th>
+                <th style={{ ...tableStyles.th, minWidth: 110 }}>Teléfono</th>
+                <th style={{ ...tableStyles.th, minWidth: 160 }}>Email</th>
+                <th style={{ ...tableStyles.th, minWidth: 140 }}>Empresa</th>
+                <th style={{ ...tableStyles.th, minWidth: 90 }}>País</th>
+                <th style={{ ...tableStyles.th, textAlign: "right", minWidth: 100 }}>Acción</th>
               </tr>
             </thead>
             <tbody>
-              {loading && allRows.length === 0 ? (
+              {loading && allJobs.length === 0 ? (
                 <tr>
-                  <td colSpan={4} style={{ padding: "2rem", color: "#64748b", textAlign: "center" }}>
-                    Cargando datos de todas las bases…
+                  <td colSpan={7} style={{ padding: "2rem", color: "#64748b", textAlign: "center" }}>
+                    Cargando registros de todas las bases…
                   </td>
                 </tr>
-              ) : filteredRows.length === 0 ? (
+              ) : filteredJobs.length === 0 ? (
                 <tr>
-                  <td colSpan={4} style={{ padding: "2rem", color: "#64748b" }}>
-                    {allRows.length === 0 ? "No hay datos QR → país en ninguna base. Sube CSV en Ver bases de datos." : "Ninguna fila coincide con el filtro o búsqueda."}
+                  <td colSpan={7} style={{ padding: "2rem", color: "#64748b" }}>
+                    {allJobs.length === 0 ? "No hay registros en ninguna base." : "Ningún registro coincide con el filtro o búsqueda."}
                   </td>
                 </tr>
               ) : (
-                filteredRows.map((row, idx) => (
-                  <tr key={`${row.projectKey}-${idx}-${row.qrContent.slice(0, 30)}`} style={{ borderTop: "1px solid #1e293b" }}>
-                    <td style={{ padding: "0.6rem 0.75rem", color: "#94a3b8", fontSize: "0.8rem", whiteSpace: "nowrap" }}>
-                      {row.projectLabel}
+                filteredJobs.map((job) => (
+                  <tr
+                    key={`${job.projectKey}-${job.id}`}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "rgba(30, 41, 59, 0.6)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "";
+                    }}
+                  >
+                    <td style={{ ...tableStyles.td, ...tableStyles.tdMuted, whiteSpace: "nowrap" }}>
+                      {job.projectLabel}
                     </td>
-                    <td
-                      style={{
-                        padding: "0.6rem 0.75rem",
-                        color: "#e2e8f0",
-                        fontFamily: "monospace",
-                        fontSize: "0.8rem",
-                        maxWidth: 320,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                      title={row.qrContent}
-                    >
-                      {row.qrContent}
-                    </td>
-                    <td style={{ padding: "0.6rem 0.75rem", color: "#34d399", whiteSpace: "nowrap" }}>
-                      {row.pais}
-                    </td>
-                    <td style={{ padding: "0.6rem 0.75rem", textAlign: "right" }}>
+                    <td style={tableStyles.td}>{job.name}</td>
+                    <td style={{ ...tableStyles.td, ...tableStyles.tdMuted }}>{job.telefono ?? "—"}</td>
+                    <td style={{ ...tableStyles.td, ...tableStyles.tdMuted, fontSize: "0.85rem" }}>{job.email ?? "—"}</td>
+                    <td style={tableStyles.td}>{job.empresa ?? "—"}</td>
+                    <td style={{ ...tableStyles.td, color: "#34d399", whiteSpace: "nowrap" }}>{job.pais ?? "—"}</td>
+                    <td style={{ ...tableStyles.td, textAlign: "right" }}>
                       <button
                         type="button"
-                        onClick={() => openPrintLabel(row)}
+                        onClick={() => openPrintLabel(job.id, job.projectKey)}
                         style={{
-                          padding: "0.35rem 0.65rem",
+                          padding: "0.4rem 0.75rem",
                           background: "#0ea5e9",
                           color: "#fff",
                           border: "none",
                           borderRadius: 6,
-                          fontSize: "0.8rem",
+                          fontSize: "0.85rem",
                           cursor: "pointer",
                           fontWeight: 600,
                         }}

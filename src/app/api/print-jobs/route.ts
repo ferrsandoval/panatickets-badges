@@ -21,13 +21,13 @@ export async function GET(req: Request) {
             ? { printedAt: null }
             : { printedAt: { not: null } };
 
-    let jobs: Array<{ id: string; name: string; empresa: string | null; pais: string | null; createdAt: Date; printedAt: Date | null }>;
+    let jobs: Array<{ id: string; name: string; empresa: string | null; telefono: string | null; email: string | null; pais: string | null; createdAt: Date; printedAt: Date | null }>;
     if (point) {
       const fallbackJobs = await prisma.printJob.findMany({
         where: onlyPending ? { printedAt: null } : allJobs ? {} : { printedAt: { not: null } },
         orderBy: [{ printedAt: "asc" }, { createdAt: "desc" }],
         take: allJobs ? limitRaw : undefined,
-        select: { id: true, name: true, empresa: true, pais: true, createdAt: true, printedAt: true, rawPayload: true },
+        select: { id: true, name: true, empresa: true, telefono: true, email: true, pais: true, createdAt: true, printedAt: true, rawPayload: true },
       });
       jobs = fallbackJobs
         .filter((job) => typeof job.rawPayload === "string" && job.rawPayload.startsWith(`[point:${point}]`))
@@ -37,7 +37,7 @@ export async function GET(req: Request) {
         where,
         orderBy: [{ createdAt: "desc" }],
         take: allJobs ? limitRaw : undefined,
-        select: { id: true, name: true, empresa: true, pais: true, createdAt: true, printedAt: true },
+        select: { id: true, name: true, empresa: true, telefono: true, email: true, pais: true, createdAt: true, printedAt: true },
       });
     }
     const valid = jobs.filter((j) => j.name && j.name.trim().length >= 2);
