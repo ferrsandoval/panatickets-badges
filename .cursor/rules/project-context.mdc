@@ -1,0 +1,138 @@
+---
+description: Contexto y convenciones del proyecto panatickets-badges
+alwaysApply: true
+---
+
+# Contexto del proyecto panatickets-badges
+
+- App Next.js para **imprimir badges** de varias expos.
+- Cada expo tiene su **propia base de datos Postgres** (Prisma Postgres), separadas para:
+  - **Invitados** (5 bases)
+  - **Expositores** (5 bases adicionales)
+- El backend selecciona la base usando el parámetro `project` en la URL (por ejemplo `project=expo_logistica_2026`).
+
+## Proyectos y nombres de `project`
+
+- `expo_logistica_2026`
+- `expo_turismo_2026`
+- `expo_comer_2026`
+- `expo_tech_2026`
+- `expo_electronica_2026`
+- `expo_logistica_expositores_2026`
+- `expo_turismo_expositores_2026`
+- `expo_comer_expositores_2026`
+- `expo_tech_expositores_2026`
+- `expo_electronica_expositores_2026`
+
+El valor de `project` se normaliza a mayúsculas y guiones bajos para formar el sufijo de la variable de entorno:
+
+- `project=expo_logistica_2026` → `DATABASE_URL_EXPO_LOGISTICA_2026`
+- `project=expo_logistica_expositores_2026` → `DATABASE_URL_EXPO_LOGISTICA_EXPOSITORES_2026`
+
+## Variables de entorno de base de datos
+
+Por cada `project` debe existir **al menos una** variable de entorno que apunte a su base Postgres.
+
+### Patrones de nombres
+
+Para cada expo, la app busca la URL de base de datos en este orden y usa la **primera que exista**:
+
+1. `DATABASE_URL_EXPO_<EXPO>`
+2. `DATABASE_URL_EXPO_<EXPO>_DATABASE_URL`
+3. `DATABASE_URL_EXPO_<EXPO>_POSTGRES_URL`
+4. `DATABASE_URL_EXPO_<EXPO>_PRISMA_DATABASE_URL`
+
+Ejemplo para logística invitados 2026:
+
+- `DATABASE_URL_EXPO_LOGISTICA_2026`
+- o `DATABASE_URL_EXPO_LOGISTICA_2026_DATABASE_URL`
+- o `DATABASE_URL_EXPO_LOGISTICA_2026_POSTGRES_URL`
+- o `DATABASE_URL_EXPO_LOGISTICA_2026_PRISMA_DATABASE_URL`
+
+### Recomendaciones para Vercel / Prisma Postgres
+
+- Usar siempre una URL **TLS** de Prisma Postgres con `sslmode=require`.
+- En entornos serverless (Vercel) preferir **conexión con pooling** cuando esté disponible.
+- Formato recomendado de URL con pooling:
+
+```text
+postgres://USER:PASSWORD@db.prisma.io:5432/postgres?sslmode=require&pool=true
+```
+
+- Si se rotan credenciales en Prisma Console, se deben actualizar **todas** las variables relevantes en Vercel y hacer **Redeploy**.
+
+## Endpoints y páginas importantes
+
+- `/imprimir-invitados`
+  - Imprime badges usando las 5 bases de invitados.
+  - Requiere que exista la base de datos con el `project` correspondiente y que esté inicializada.
+
+- `/imprimir-expositores`
+  - Imprime badges usando las 5 bases de expositores.
+  - Usa campos: `qr_content`, `pais`, `empresa`.
+
+- `/databases`
+  - Permite ver el estado de cada base (estadísticas y errores de conexión).
+  - Permite subir CSV para poblar la tabla de lookup `qr_country_lookup`.
+  - Muestra mensajes claros si falta una variable de entorno o si no se puede conectar a la base.
+
+- `/api/setup-db?token=...&project=...`
+  - Crea/actualiza las tablas necesarias (`print_jobs`, `qr_country_lookup`) en la base del `project` indicado.
+  - Debe llamarse **una vez por cada expo** al configurar una base nueva.
+
+- `/api/admin/import-qr-pais-from-folder?token=...`
+  - Importa varios CSV desde `data/qr-pais/` hacia las bases correspondientes.
+
+- `/api/webhook/codereadr?token=...&project=...&point=...`
+  - Webhook de CodeREADr; siempre debe incluir el parámetro `project` para elegir la base correcta.
+
+## Formatos de CSV
+
+### Invitados
+
+- **Columnas esperadas (2):**
+  1. `qr_content` (o equivalente a "QR Content")
+  2. `pais` (o equivalente a "País")
+- Se aceptan delimitadores `,` o `;` (se detecta automáticamente).
+- No se exige un nombre de cabecera exacto, pero el **orden de las columnas** debe respetarse.
+
+### Expositores
+
+- **Columnas esperadas (3):**
+  1. `qr_content` (contenido del QR)
+  2. `pais`
+  3. `empresa`
+- También se soportan `,` o `;` como delimitador.
+- Todas las bases de expositores usan el **mismo formato** (no hay excepciones por expo).
+
+## Comportamiento del lookup QR → país/empresa
+
+- Los datos se almacenan en la tabla `qr_country_lookup` de cada base.
+- El endpoint de lookup devuelve siempre un objeto con:
+  - `qr_content`
+  - `pais`
+  - `empresa` (puede ser `null` si la base no tiene columna o el CSV no la define).
+- Existe un **fallback** en el código de upsert:
+  - Si la columna `empresa` no existe en la base, se hace upsert con solo `qr_content` y `pais` usando SQL directo.
+
+## Flujo típico de configuración de una expo
+
+1. Crear base Postgres (Prisma Postgres) para la expo.
+2. Definir la variable de entorno correspondiente (`DATABASE_URL_EXPO_...`) en Vercel o `.env.local`.
+3. Redeploy de la app (en Vercel) para que cargue las nuevas variables.
+4. Llamar a `/api/setup-db?token=...&project=...` para crear las tablas.
+5. Importar CSV de QR → país/empresa:
+   - Desde `/databases` subiendo un CSV, o
+   - Usando `/api/admin/import-qr-pais-from-folder?token=...` si los CSV están en `data/qr-pais/`.
+
+## Troubleshooting conexión a la base
+
+Si aparece el mensaje `"Can't reach database server at db.prisma.io:5432"`:
+
+- Verificar que:
+  - Existe alguna de las variables esperadas para ese `project`.
+  - La URL es la de Prisma Postgres correcta (sin espacios, sin comillas).
+  - La base no está pausada o borrada en Prisma Console / Vercel Storage.
+- En Vercel, después de cambiar variables, hacer **Redeploy**.
+- Preferir siempre la URL de conexión **pooled** cuando el proveedor la ofrezca.
+

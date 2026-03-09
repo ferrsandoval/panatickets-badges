@@ -277,9 +277,32 @@ function DatabasesContent() {
           <strong>Error de conexión</strong>
           <p style={{ margin: "0.5rem 0 0", fontSize: "0.9rem" }}>{error}</p>
           {/can't reach database|db\.prisma\.io|connection refused|ECONNREFUSED/i.test(error) && (
-            <p style={{ margin: "0.75rem 0 0", fontSize: "0.85rem", color: "#94a3b8" }}>
-              Revisa en <code>docs/VARIABLES_POR_EXPO.md</code>: que la base esté activa en el panel de Prisma/Vercel, que la URL en la variable de entorno sea la correcta y que hayas hecho <strong>Redeploy</strong> en Vercel tras cambiar variables.
-            </p>
+            <>
+              <p style={{ margin: "0.75rem 0 0", fontSize: "0.85rem", color: "#94a3b8" }}>
+                Para <strong>{currentLabel}</strong>: verifica que la variable <code>DATABASE_URL_{selectedProject.toUpperCase().replace(/[^A-Z0-9]/g, "_")}</code> (o _DATABASE_URL, _POSTGRES_URL) esté en Vercel. Si usas Prisma Postgres: entra en{" "}
+                <a href="https://console.prisma.io" target="_blank" rel="noopener noreferrer" style={{ color: "#38bdf8" }}>console.prisma.io</a>
+                {" "}y comprueba que la base <strong>no esté pausada</strong> (Resume si lo está). Usa la URL <strong>Pooled</strong> en Vercel, no la Direct. Tras cambios: <strong>Redeploy</strong>.
+              </p>
+              <p style={{ margin: "0.5rem 0 0", fontSize: "0.8rem", color: "#64748b" }}>
+                Más detalles en <code>docs/VARIABLES_POR_EXPO.md</code> (sección &quot;Can&apos;t reach database server&quot;).
+              </p>
+              <button
+                type="button"
+                onClick={() => setRefreshTrigger((t) => t + 1)}
+                style={{
+                  marginTop: "0.75rem",
+                  padding: "0.4rem 0.75rem",
+                  background: "#1e293b",
+                  color: "#e2e8f0",
+                  border: "1px solid #475569",
+                  borderRadius: 6,
+                  fontSize: "0.85rem",
+                  cursor: "pointer",
+                }}
+              >
+                Reintentar
+              </button>
+            </>
           )}
         </section>
       )}
