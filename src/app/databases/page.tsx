@@ -33,6 +33,15 @@ type DbStats = {
   qrCountryLookup: Array<{ qrContent: string; pais: string }>;
 };
 
+type PrintJobRow = {
+  id: string;
+  name: string;
+  empresa: string | null;
+  pais: string | null;
+  createdAt: string;
+  printedAt: string | null;
+};
+
 export default function DatabasesPage() {
   return (
     <Suspense fallback={<p style={{ margin: "2rem auto", maxWidth: 900 }}>Cargando…</p>}>
@@ -44,6 +53,9 @@ export default function DatabasesPage() {
 function DatabasesContent() {
   const [selectedProject, setSelectedProject] = useState<string>(PROJECTS[0].key);
   const [stats, setStats] = useState<DbStats | null>(null);
+  const [allJobs, setAllJobs] = useState<PrintJobRow[]>([]);
+  const [jobsLoading, setJobsLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -76,9 +88,30 @@ function DatabasesContent() {
       .finally(() => setLoading(false));
   }, [selectedProject]);
 
+  const fetchAllJobs = useCallback(() => {
+    if (!selectedProject) return;
+    setJobsLoading(true);
+    const url = new URL("/api/print-jobs", window.location.origin);
+    url.searchParams.set("project", selectedProject);
+    url.searchParams.set("printed", "all");
+    url.searchParams.set("limit", "3000");
+    fetch(url.toString())
+      .then((r) => {
+        if (!r.ok) return r.json().then((d) => Promise.reject(new Error(d.detail ?? d.error ?? r.statusText)));
+        return r.json();
+      })
+      .then((data: PrintJobRow[]) => setAllJobs(data))
+      .catch(() => setAllJobs([]))
+      .finally(() => setJobsLoading(false));
+  }, [selectedProject]);
+
   useEffect(() => {
     fetchStats();
   }, [fetchStats, refreshTrigger]);
+
+  useEffect(() => {
+    fetchAllJobs();
+  }, [fetchAllJobs, refreshTrigger]);
 
   const handleUploadCsv = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -116,6 +149,23 @@ function DatabasesContent() {
   };
 
   const currentLabel = PROJECTS.find((p) => p.key === selectedProject)?.label ?? selectedProject;
+
+  const searchLower = searchQuery.trim().toLowerCase();
+  const filteredJobs =
+    searchLower === ""
+      ? allJobs
+      : allJobs.filter(
+          (j) =>
+            (j.name ?? "").toLowerCase().includes(searchLower) ||
+            (j.empresa ?? "").toLowerCase().includes(searchLower) ||
+            (j.pais ?? "").toLowerCase().includes(searchLower)
+        );
+
+  const openPrintLabel = (jobId: string) => {
+    const labelUrl = new URL(`/label/${jobId}`, window.location.origin);
+    labelUrl.searchParams.set("project", selectedProject);
+    window.open(labelUrl.toString(), "_blank", "noopener,noreferrer,width=420,height=380");
+  };
 
   return (
     <main style={{ maxWidth: 1000, margin: "0 auto", padding: "1rem" }}>
@@ -356,32 +406,57 @@ function DatabasesContent() {
               overflow: "hidden",
             }}
           >
-            <h2 style={{ margin: 0, padding: "1rem", fontSize: "1rem", borderBottom: "1px solid #334155" }}>
-              Últimos registros en <strong>{currentLabel}</strong>
+            <h2 style={{ margin: 0, padding: "1rem", fontSize: "1rem", borderBottom: "1px solid #334155", color: "#e2e8f0" }}>
+              Registros en <strong>{currentLabel}</strong>
             </h2>
-            <p style={{ margin: 0, padding: "0.5rem 1rem", fontSize: "0.8rem", color: "#94a3b8", borderBottom: "1px solid #334155" }}>
-              Etiquetas ya impresas. El país se obtiene de la tabla QR → país (lookup) comparando el contenido del QR.
-            </p>
-            <div style={{ overflowX: "auto" }}>
+            <div style={{ padding: "0.75rem 1rem", borderBottom: "1px solid #334155", display: "flex", flexWrap: "wrap", gap: "0.75rem", alignItems: "center" }}>
+              <input
+                type="search"
+                placeholder="Buscar por nombre, empresa o país…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{
+                  flex: "1 1 260px",
+                  minWidth: 0,
+                  padding: "0.5rem 0.75rem",
+                  fontSize: "0.9rem",
+                  background: "#1e293b",
+                  color: "#e2e8f0",
+                  border: "1px solid #475569",
+                  borderRadius: 8,
+                }}
+              />
+              <span style={{ fontSize: "0.85rem", color: "#94a3b8" }}>
+                {jobsLoading ? "Cargando…" : `${filteredJobs.length} de ${allJobs.length} registros`}
+              </span>
+            </div>
+            <div style={{ overflowX: "auto", maxHeight: "60vh", overflowY: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
-                <thead>
-                  <tr style={{ background: "#1e293b", color: "#94a3b8" }}>
+                <thead style={{ position: "sticky", top: 0, background: "#1e293b", zIndex: 1 }}>
+                  <tr style={{ color: "#94a3b8" }}>
                     <th style={{ textAlign: "left", padding: "0.6rem 0.75rem" }}>Nombre</th>
                     <th style={{ textAlign: "left", padding: "0.6rem 0.75rem" }}>Empresa</th>
-                    <th style={{ textAlign: "left", padding: "0.6rem 0.75rem" }}>País (desde tabla QR)</th>
+                    <th style={{ textAlign: "left", padding: "0.6rem 0.75rem" }}>País</th>
                     <th style={{ textAlign: "left", padding: "0.6rem 0.75rem" }}>Creado</th>
                     <th style={{ textAlign: "left", padding: "0.6rem 0.75rem" }}>Impreso</th>
+                    <th style={{ textAlign: "right", padding: "0.6rem 0.75rem" }}>Acción</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {stats.recentJobs.length === 0 ? (
+                  {jobsLoading && allJobs.length === 0 ? (
                     <tr>
-                      <td colSpan={5} style={{ padding: "1.5rem", color: "#64748b" }}>
-                        No hay registros en esta base de datos.
+                      <td colSpan={6} style={{ padding: "1.5rem", color: "#64748b" }}>
+                        Cargando registros…
+                      </td>
+                    </tr>
+                  ) : filteredJobs.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} style={{ padding: "1.5rem", color: "#64748b" }}>
+                        {allJobs.length === 0 ? "No hay registros en esta base de datos." : "Ningún registro coincide con la búsqueda."}
                       </td>
                     </tr>
                   ) : (
-                    stats.recentJobs.map((j) => (
+                    filteredJobs.map((j) => (
                       <tr key={j.id} style={{ borderTop: "1px solid #1e293b" }}>
                         <td style={{ padding: "0.6rem 0.75rem", color: "#e2e8f0" }}>{j.name}</td>
                         <td style={{ padding: "0.6rem 0.75rem", color: "#cbd5e1" }}>{j.empresa ?? "—"}</td>
@@ -391,6 +466,24 @@ function DatabasesContent() {
                         </td>
                         <td style={{ padding: "0.6rem 0.75rem", color: j.printedAt ? "#34d399" : "#fbbf24" }}>
                           {j.printedAt ? new Date(j.printedAt).toLocaleString("es") : "Pendiente"}
+                        </td>
+                        <td style={{ padding: "0.6rem 0.75rem", textAlign: "right" }}>
+                          <button
+                            type="button"
+                            onClick={() => openPrintLabel(j.id)}
+                            style={{
+                              padding: "0.35rem 0.65rem",
+                              background: "#0ea5e9",
+                              color: "#fff",
+                              border: "none",
+                              borderRadius: 6,
+                              fontSize: "0.8rem",
+                              cursor: "pointer",
+                              fontWeight: 600,
+                            }}
+                          >
+                            Imprimir
+                          </button>
                         </td>
                       </tr>
                     ))

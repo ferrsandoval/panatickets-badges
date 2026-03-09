@@ -3,27 +3,41 @@ import { getPrismaForProject } from "@/lib/prisma";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
-  const onlyPending = searchParams.get("printed") !== "true";
+  const printedParam = searchParams.get("printed");
+  const allJobs = printedParam === "all";
+  const onlyPending = !allJobs && printedParam !== "true";
   const project = searchParams.get("project");
   const point = searchParams.get("point")?.trim() || null;
+  const limitRaw = Math.min(5000, Math.max(1, parseInt(searchParams.get("limit") ?? "1000", 10) || 1000));
 
   try {
     const prisma = getPrismaForProject(project);
-    let jobs: Array<{ id: string; name: string; empresa: string | null; createdAt: Date; printedAt: Date | null }>;
+    const where =
+      point
+        ? undefined
+        : allJobs
+          ? {}
+          : onlyPending
+            ? { printedAt: null }
+            : { printedAt: { not: null } };
+
+    let jobs: Array<{ id: string; name: string; empresa: string | null; pais: string | null; createdAt: Date; printedAt: Date | null }>;
     if (point) {
       const fallbackJobs = await prisma.printJob.findMany({
-        where: onlyPending ? { printedAt: null } : undefined,
+        where: onlyPending ? { printedAt: null } : allJobs ? {} : { printedAt: { not: null } },
         orderBy: [{ printedAt: "asc" }, { createdAt: "desc" }],
-        select: { id: true, name: true, empresa: true, createdAt: true, printedAt: true, rawPayload: true },
+        take: allJobs ? limitRaw : undefined,
+        select: { id: true, name: true, empresa: true, pais: true, createdAt: true, printedAt: true, rawPayload: true },
       });
       jobs = fallbackJobs
         .filter((job) => typeof job.rawPayload === "string" && job.rawPayload.startsWith(`[point:${point}]`))
         .map(({ rawPayload: _rawPayload, ...job }) => job);
     } else {
       jobs = await prisma.printJob.findMany({
-        where: onlyPending ? { printedAt: null } : undefined,
-        orderBy: [{ printedAt: "asc" }, { createdAt: "desc" }],
-        select: { id: true, name: true, empresa: true, createdAt: true, printedAt: true },
+        where,
+        orderBy: [{ createdAt: "desc" }],
+        take: allJobs ? limitRaw : undefined,
+        select: { id: true, name: true, empresa: true, pais: true, createdAt: true, printedAt: true },
       });
     }
     const valid = jobs.filter((j) => j.name && j.name.trim().length >= 2);
