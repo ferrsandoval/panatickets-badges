@@ -6,7 +6,7 @@ const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 
 /**
  * POST /api/admin/upload-qr-pais-csv?token=WEBHOOK_SECRET&project=expo_logistica_2026
- * Body: CSV con cabecera qr_content,pais (o archivo multipart con el CSV).
+ * Body: CSV. Proyectos invitados: 2 columnas (qr_content,pais). Proyectos expositores: 3 columnas (QR Content,País,Empresa).
  * Inserta/actualiza qr_country_lookup en la base de esa expo.
  */
 export async function POST(req: NextRequest) {
@@ -43,7 +43,10 @@ export async function POST(req: NextRequest) {
     text = await req.text();
   }
 
-  const rows = parseCsvText(text);
+  const isExpositores = project.includes("expositores");
+  const rows = parseCsvText(text, {
+    format: isExpositores ? "expositores" : "invitados",
+  });
 
   if (rows.length === 0) {
     return NextResponse.json(

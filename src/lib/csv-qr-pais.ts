@@ -35,25 +35,42 @@ export function parseCsvLine(
   return { qrContent, pais };
 }
 
+/** Normaliza para comparar cabecera (quita tildes para "pais"/"país"). */
+function normalizeHeader(header: string): string {
+  return header
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\u0301/g, "")
+    .replace(/í/g, "i");
+}
+
 /**
  * Detecta si la cabecera indica formato 3 columnas EXPOSITORES (QR Content, País, Empresa).
  */
 function detectEmpresaHeader(header: string): boolean {
-  const h = header.toLowerCase();
+  const h = normalizeHeader(header);
   return (h.includes("qr_content") || h.includes("qr content")) && h.includes("empresa") && h.includes("pais");
 }
+
+export type ParseCsvOptions = {
+  /** Si "expositores", fuerza formato 3 columnas (QR Content, País, Empresa). Si "invitados", fuerza 2 columnas. Por defecto "auto" (detecta por cabecera). */
+  format?: "auto" | "expositores" | "invitados";
+};
 
 /**
  * Parsea texto CSV completo.
  * Invitados: cabecera qr_content,pais (2 columnas).
- * Expositores: cabecera QR Content,País,Empresa (3 columnas, en ese orden).
+ * Expositores: 3 columnas (QR Content, País, Empresa). Con format:"expositores" se fuerza este formato sin depender de la cabecera.
  */
-export function parseCsvText(text: string): CsvQrPaisRow[] {
+export function parseCsvText(text: string, options?: ParseCsvOptions): CsvQrPaisRow[] {
+  const format = options?.format ?? "auto";
   const lines = text.split(/\r?\n/).filter((l) => l.trim());
-  const header = lines[0]?.toLowerCase() ?? "";
+  const header = lines[0] ?? "";
+  const headerNorm = normalizeHeader(header);
   const hasHeader =
-    (header.includes("qr_content") || header.includes("qr content")) && header.includes("pais");
-  const hasEmpresa = detectEmpresaHeader(header);
+    (headerNorm.includes("qr_content") || headerNorm.includes("qr content")) && headerNorm.includes("pais");
+  const hasEmpresa =
+    format === "expositores" ? true : format === "invitados" ? false : detectEmpresaHeader(header);
   const dataLines = hasHeader ? lines.slice(1) : lines;
   const rows: CsvQrPaisRow[] = [];
   for (const line of dataLines) {

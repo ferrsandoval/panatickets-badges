@@ -71,7 +71,10 @@ export async function GET(req: NextRequest) {
       const prisma = getPrismaForProject(project);
       const path = join(CSV_FOLDER, file);
       const text = await readFile(path, "utf-8");
-      const rows = parseCsvText(text);
+      const isExpositores = project.includes("expositores");
+      const rows = parseCsvText(text, {
+        format: isExpositores ? "expositores" : "invitados",
+      });
       for (const { qrContent, pais, empresa } of rows) {
         const normalized = qrContent.trim();
         if (!normalized) continue;
