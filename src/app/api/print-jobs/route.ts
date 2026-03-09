@@ -9,12 +9,12 @@ export async function GET(req: Request) {
 
   try {
     const prisma = getPrismaForProject(project);
-    let jobs: Array<{ id: string; name: string; createdAt: Date; printedAt: Date | null }>;
+    let jobs: Array<{ id: string; name: string; empresa: string | null; createdAt: Date; printedAt: Date | null }>;
     if (point) {
       const fallbackJobs = await prisma.printJob.findMany({
         where: onlyPending ? { printedAt: null } : undefined,
         orderBy: [{ printedAt: "asc" }, { createdAt: "desc" }],
-        select: { id: true, name: true, createdAt: true, printedAt: true, rawPayload: true },
+        select: { id: true, name: true, empresa: true, createdAt: true, printedAt: true, rawPayload: true },
       });
       jobs = fallbackJobs
         .filter((job) => typeof job.rawPayload === "string" && job.rawPayload.startsWith(`[point:${point}]`))
@@ -23,7 +23,7 @@ export async function GET(req: Request) {
       jobs = await prisma.printJob.findMany({
         where: onlyPending ? { printedAt: null } : undefined,
         orderBy: [{ printedAt: "asc" }, { createdAt: "desc" }],
-        select: { id: true, name: true, createdAt: true, printedAt: true },
+        select: { id: true, name: true, empresa: true, createdAt: true, printedAt: true },
       });
     }
     const valid = jobs.filter((j) => j.name && j.name.trim().length >= 2);
