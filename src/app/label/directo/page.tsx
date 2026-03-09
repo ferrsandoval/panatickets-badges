@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import QRCode from "qrcode";
+import { safeDecodeUriComponent, sanitizeForPrint } from "@/lib/print-text";
 import "../[id]/label-print.css";
 
 function getExpoLabel(project: string | null): string | null {
@@ -51,10 +52,13 @@ function LabelDirectoContent() {
   const nameParam = searchParams.get("name");
   const empresaParam = searchParams.get("empresa");
 
-  const qrContent = qrContentParam ? decodeURIComponent(qrContentParam) : "";
-  const pais = paisParam ? decodeURIComponent(paisParam) : "";
-  const name = getLabelValue(nameParam) || nameFromQrContent(qrContent);
-  const empresa = getLabelValue(empresaParam);
+  const qrContent = qrContentParam ? safeDecodeUriComponent(qrContentParam) : "";
+  const rawPais = paisParam ? safeDecodeUriComponent(paisParam) : "";
+  const rawName = getLabelValue(nameParam ? safeDecodeUriComponent(nameParam) : "") || nameFromQrContent(qrContent);
+  const rawEmpresa = getLabelValue(empresaParam ? safeDecodeUriComponent(empresaParam) : "");
+  const pais = sanitizeForPrint(rawPais);
+  const name = sanitizeForPrint(rawName);
+  const empresa = sanitizeForPrint(rawEmpresa);
 
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
 
@@ -92,7 +96,7 @@ function LabelDirectoContent() {
   const lines = [
     { text: name, className: "label-name" },
     { text: empresa, className: "label-empresa" },
-    ...(getLabelValue(pais) ? [{ text: pais, className: "label-pais" }] : []),
+    ...(pais ? [{ text: pais, className: "label-pais" }] : []),
     { text: getLabelValue(expoLabel), className: "label-expo" },
   ];
 

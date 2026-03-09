@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import QRCode from "qrcode";
 import { useParams, useSearchParams } from "next/navigation";
+import { sanitizeForPrint } from "@/lib/print-text";
 import "./label-print.css";
 
 type LookupDebug = {
@@ -123,9 +124,9 @@ export default function LabelPage() {
 
   const paisValue = getLabelValue(job.pais);
   const lines = [
-    { text: getLabelValue(job.name), className: "label-name" },
-    { text: getLabelValue(job.empresa), className: "label-empresa" },
-    ...(paisValue ? [{ text: paisValue, className: "label-pais" }] : []),
+    { text: sanitizeForPrint(getLabelValue(job.name)), className: "label-name" },
+    { text: sanitizeForPrint(getLabelValue(job.empresa)), className: "label-empresa" },
+    ...(paisValue ? [{ text: sanitizeForPrint(paisValue), className: "label-pais" }] : []),
     { text: getLabelValue(expoLabel), className: "label-expo" },
   ];
 

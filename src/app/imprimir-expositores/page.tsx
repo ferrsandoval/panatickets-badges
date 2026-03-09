@@ -9,6 +9,7 @@ import {
   parseTelefonoFromQrText,
   parseEmailFromQrText,
 } from "@/lib/qr-parser";
+import { hasUnprintableOrRisky } from "@/lib/print-text";
 
 const PROJECTS = [
   { key: "expo_logistica_2026", label: "EXPO LOGISTICA 2026" },
@@ -339,18 +340,33 @@ function ImprimirExpositoresContent() {
                       </td>
                       <td style={{ ...tableStyles.td, fontWeight: 600, color: "#f1f5f9" }}>
                         {parsed.name || "—"}
+                        {hasUnprintableOrRisky(parsed.name) && (
+                          <span title="Contiene % o caracteres que pueden no imprimirse bien" style={{ marginLeft: 4, color: "#fbbf24" }}>⚠</span>
+                        )}
                       </td>
                       <td style={{ ...tableStyles.td, ...tableStyles.tdMuted, whiteSpace: "nowrap" }}>
                         {parsed.telefono || "—"}
+                        {hasUnprintableOrRisky(parsed.telefono) && (
+                          <span title="Contiene % o caracteres que pueden no imprimirse bien" style={{ marginLeft: 4, color: "#fbbf24" }}>⚠</span>
+                        )}
                       </td>
                       <td style={{ ...tableStyles.td, ...tableStyles.tdMuted, fontSize: "0.85rem" }}>
                         {parsed.email || "—"}
+                        {hasUnprintableOrRisky(parsed.email) && (
+                          <span title="Contiene % o caracteres que pueden no imprimirse bien" style={{ marginLeft: 4, color: "#fbbf24" }}>⚠</span>
+                        )}
                       </td>
                       <td style={{ ...tableStyles.td, ...tableStyles.tdMuted }}>
                         {parsed.empresa || "—"}
+                        {hasUnprintableOrRisky(parsed.empresa) && (
+                          <span title="Contiene % o caracteres que pueden no imprimirse bien" style={{ marginLeft: 4, color: "#fbbf24" }}>⚠</span>
+                        )}
                       </td>
                       <td style={{ ...tableStyles.td, color: "#34d399", whiteSpace: "nowrap", fontWeight: 500 }}>
                         {row.pais || "—"}
+                        {hasUnprintableOrRisky(row.pais) && (
+                          <span title="Contiene % o caracteres que pueden no imprimirse bien" style={{ marginLeft: 4, color: "#fbbf24" }}>⚠</span>
+                        )}
                       </td>
                       <td
                         style={{
@@ -366,6 +382,9 @@ function ImprimirExpositoresContent() {
                         title={row.qrContent}
                       >
                         {row.qrContent}
+                        {hasUnprintableOrRisky(row.qrContent) && (
+                          <span title="Contiene % o caracteres que pueden no imprimirse bien" style={{ marginLeft: 4, color: "#fbbf24" }}>⚠</span>
+                        )}
                       </td>
                       <td style={{ ...tableStyles.td, textAlign: "right" }}>
                         <button
