@@ -8,6 +8,15 @@
 export type CsvQrPaisRow = { qrContent: string; pais: string; empresa?: string | null };
 
 /**
+ * Detecta el delimitador. Usar ; solo si la línea no tiene comas (formato europeo).
+ * El QR content puede tener ; (Empresa='';Nombre='...'), por eso si hay comas usamos coma.
+ */
+function detectDelimiter(line: string, minParts: number): "," | ";" {
+  if (!line.includes(",") && line.split(";").length >= minParts) return ";";
+  return ",";
+}
+
+/**
  * Parsea una línea CSV.
  * hasEmpresa: si true, formato EXPOSITORES con 3 columnas.
  * expositoresOrder: "pais_empresa" = col2=País, col3=Empresa. "empresa_pais" = col2=Empresa, col3=País.
@@ -15,16 +24,17 @@ export type CsvQrPaisRow = { qrContent: string; pais: string; empresa?: string |
 export function parseCsvLine(
   line: string,
   hasEmpresa: boolean,
-  expositoresOrder: "pais_empresa" | "empresa_pais" = "pais_empresa"
+  expositoresOrder: "pais_empresa" | "empresa_pais" = "pais_empresa",
+  delimiter: "," | ";" = ","
 ): { qrContent: string; pais: string; empresa?: string | null } | null {
   const trimmed = line.trim();
   if (!trimmed) return null;
-  const parts = trimmed.split(",");
+  const parts = trimmed.split(delimiter);
   if (hasEmpresa) {
     if (parts.length < 3) return null;
     const col3 = parts.pop()?.trim().replace(/^["']|["']$/g, "") ?? "";
     const col2 = parts.pop()?.trim().replace(/^["']|["']$/g, "") ?? "";
-    const qrContent = parts.join(",").trim().replace(/^["']|["']$/g, "");
+    const qrContent = parts.join(delimiter).trim().replace(/^["']|["']$/g, "");
     if (!qrContent) return null;
     const [pais, empresa] =
       expositoresOrder === "empresa_pais" ? [col3, col2] : [col2, col3];
@@ -33,7 +43,7 @@ export function parseCsvLine(
   // Formato invitados: qr_content,pais (2 columnas)
   if (parts.length < 2) return null;
   const pais = parts.pop()?.trim().replace(/^["']|["']$/g, "") ?? "";
-  const qrContent = parts.join(",").trim().replace(/^["']|["']$/g, "");
+  const qrContent = parts.join(delimiter).trim().replace(/^["']|["']$/g, "");
   if (!qrContent || !pais) return null;
   return { qrContent, pais };
 }
@@ -82,10 +92,28 @@ export function parseCsvText(text: string, options?: ParseCsvOptions): CsvQrPais
             (headerNorm.includes("qr_content") || headerNorm.includes("qr content")) && headerNorm.includes("pais");
           return hasHeader ? lines.slice(1) : lines;
         })();
-  const rows: CsvQrPaisRow[] = [];
-  for (const line of dataLines) {
-    const row = parseCsvLine(line, hasEmpresa, expositoresOrder);
-    if (row) rows.push(row);
+  const minParts = hasEmpresa ? 3 : 2;
+  const firstLine = dataLines[0] ?? "";
+  const delimiter = detectDelimiter(firstLine, minParts);
+
+  const tryParse = (order: "pais_empresa" | "empresa_pais") => {
+    const result: CsvQrPaisRow[] = [];
+    for (const line of dataLines) {
+      const row = parseCsvLine(line, hasEmpresa, order, delimiter);
+      if (row) result.push(row);
+    }
+    return result;
+  };
+
+  if (hasEmpresa && expositoresOrder === "empresa_pais") {
+    const withEmpresaPais = tryParse("empresa_pais");
+    const withPaisEmpresa = tryParse("pais_empresa");
+    const countValid = (r: CsvQrPaisRow[]) =>
+      r.filter((x) => (x.pais ?? "").trim() && (x.empresa ?? "").trim()).length;
+    return countValid(withEmpresaPais) >= countValid(withPaisEmpresa)
+      ? withEmpresaPais
+      : withPaisEmpresa;
   }
-  return rows;
+
+  return tryParse(expositoresOrder);
 }

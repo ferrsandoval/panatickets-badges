@@ -73,8 +73,10 @@ export async function GET(req: NextRequest) {
       const path = join(CSV_FOLDER, file);
       const text = await readFile(path, "utf-8");
       const isExpositores = project.includes("expositores");
+      const isLogisticaExpositores = project === "expo_logistica_expositores_2026";
       const rows = parseCsvText(text, {
         format: isExpositores ? "expositores" : "invitados",
+        expositoresColumnOrder: isLogisticaExpositores ? "empresa_pais" : "pais_empresa",
       });
       await upsertQrLookupRows(prisma, rows);
       totalRows += rows.length;
