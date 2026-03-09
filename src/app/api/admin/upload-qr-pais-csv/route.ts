@@ -47,20 +47,21 @@ export async function POST(req: NextRequest) {
 
   if (rows.length === 0) {
     return NextResponse.json(
-      { error: "No se encontraron filas válidas (qr_content,pais)" },
+      { error: "No se encontraron filas válidas (qr_content,pais o qr_content,empresa,pais)" },
       { status: 400 }
     );
   }
 
   try {
     const prisma = getPrismaForProject(project);
-    for (const { qrContent, pais } of rows) {
+    for (const { qrContent, pais, empresa } of rows) {
       const normalized = qrContent.trim();
       if (!normalized) continue;
+      const empresaVal = empresa != null && empresa !== "" ? empresa.trim() : null;
       await prisma.qrCountryLookup.upsert({
         where: { qrContent: normalized },
-        create: { qrContent: normalized, pais: pais.trim() },
-        update: { pais: pais.trim() },
+        create: { qrContent: normalized, pais: pais.trim(), empresa: empresaVal },
+        update: { pais: pais.trim(), empresa: empresaVal },
       });
     }
     return NextResponse.json({

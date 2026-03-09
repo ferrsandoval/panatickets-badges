@@ -72,13 +72,14 @@ export async function GET(req: NextRequest) {
       const path = join(CSV_FOLDER, file);
       const text = await readFile(path, "utf-8");
       const rows = parseCsvText(text);
-      for (const { qrContent, pais } of rows) {
+      for (const { qrContent, pais, empresa } of rows) {
         const normalized = qrContent.trim();
         if (!normalized) continue;
+        const empresaVal = empresa != null && empresa !== "" ? empresa.trim() : null;
         await prisma.qrCountryLookup.upsert({
           where: { qrContent: normalized },
-          create: { qrContent: normalized, pais: pais.trim() },
-          update: { pais: pais.trim() },
+          create: { qrContent: normalized, pais: pais.trim(), empresa: empresaVal },
+          update: { pais: pais.trim(), empresa: empresaVal },
         });
         totalRows++;
       }

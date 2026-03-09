@@ -73,11 +73,13 @@ DATABASE_URL_EXPO_ELECTRONICA_EXPOSITORES_2026_DATABASE_URL=postgres://...
    - https://**TU_APP**.vercel.app/api/setup-db?token=**TU_TOKEN**&project=expo_comer_expositores_2026
    - https://**TU_APP**.vercel.app/api/setup-db?token=**TU_TOKEN**&project=expo_tech_expositores_2026
    - https://**TU_APP**.vercel.app/api/setup-db?token=**TU_TOKEN**&project=expo_electronica_expositores_2026  
-   Debes ver algo como: `{"ok":true,"message":"Tablas print_jobs y qr_country_lookup creadas/actualizadas..."}`
+y   Debes ver algo como: `{"ok":true,"message":"Tablas print_jobs y qr_country_lookup creadas/actualizadas..."}`
 
 3. **Cargar QR → país (lookup)**  
-   Opción A: En la app, ve a **Ver bases de datos** → elige una expo → en "Subir CSV" introduce tu token y sube un CSV con columnas `qr_content,pais`.  
-   Opción B: Si tienes CSV en `data/qr-pais/` (EXPO_LOGISTICA.csv, etc.), llama una vez a:  
+   Opción A: En la app, ve a **Ver bases de datos** → elige una expo → en "Subir CSV" introduce tu token y sube un CSV.  
+   - **Expos normales:** columnas `qr_content,pais` (2 columnas).  
+   - **Bases EXPOSITORES:** columnas `QR Content,Empresa,País` (3 columnas).  
+   Opción B: Si tienes CSV en `data/qr-pais/` (EXPO_LOGISTICA.csv, EXPO_LOGISTICA_EXPOSITORES.csv, etc.), llama una vez a:  
    `https://TU_APP.vercel.app/api/admin/import-qr-pais-from-folder?token=TU_TOKEN`
 
 4. **Webhook en CodeREADr**  
@@ -108,7 +110,9 @@ DATABASE_URL_EXPO_ELECTRONICA_EXPOSITORES_2026_DATABASE_URL=postgres://...
    https://TU_APP.vercel.app/api/admin/import-qr-pais-from-folder?token=TU_TOKEN
    ```
 
-   Cada archivo se importa en la base de su expo:
+   Cada archivo se importa en la base de su expo. **Formato CSV:**  
+   - Expos normales: cabecera `qr_content,pais` (2 columnas).  
+   - Bases EXPOSITORES: cabecera `QR Content,Empresa,País` (3 columnas).  
    - `EXPO_LOGISTICA.csv` → base de expo_logistica_2026  
    - `EXPO_TURISMO.csv` → base de expo_turismo_2026  
    - `EXPO_COMER.csv` → base de expo_comer_2026  

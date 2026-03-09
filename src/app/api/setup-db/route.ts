@@ -70,6 +70,7 @@ export async function GET(req: NextRequest) {
     await prisma.$executeRawUnsafe(`
       CREATE UNIQUE INDEX IF NOT EXISTS "qr_country_lookup_qr_content_key" ON "qr_country_lookup"("qr_content");
     `);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "qr_country_lookup" ADD COLUMN IF NOT EXISTS "empresa" TEXT;`);
 
     return NextResponse.json({
       ok: true,

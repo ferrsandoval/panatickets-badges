@@ -24,9 +24,14 @@ const PROJECTS = [
   { key: "expo_electronica_expositores_2026", label: "EXPO ELECTRÓNICA EXPOSITORES 2026" },
 ] as const;
 
-type QrLookupRow = { qrContent: string; pais: string };
+type QrLookupRow = { qrContent: string; pais: string; empresa?: string };
 
 type RowWithProject = QrLookupRow & { projectKey: string; projectLabel: string };
+
+/** Indica si la base es de tipo EXPOSITORES (formato CSV: QR Content, Empresa, País). */
+function isExpositoresProject(projectKey: string): boolean {
+  return projectKey.includes("expositores");
+}
 
 /** Normaliza texto para búsqueda: trim, minúsculas, espacios colapsados. */
 function normalizeForSearch(s: string): string {
@@ -50,6 +55,34 @@ function getParsedFieldsFromQrContent(qrContent: string): {
   const telefono = parseTelefonoFromQrText(qrText)?.trim().slice(0, 40) ?? "";
   const email = parseEmailFromQrText(qrText)?.trim().slice(0, 80) ?? "";
   return { qrText, name, empresa, telefono, email };
+}
+
+/**
+ * Campos a mostrar e imprimir según tipo de base.
+ * - Expos normales: nombre, empresa, teléfono, email del parser del QR; país de la tabla.
+ * - Expos EXPOSITORES: Empresa y País de la tabla (CSV 3 columnas); Nombre = QR Content o parser si hay.
+ */
+function getDisplayFields(row: RowWithProject): {
+  name: string;
+  empresa: string;
+  pais: string;
+  telefono: string;
+  email: string;
+} {
+  const parsed = getParsedFieldsFromQrContent(row.qrContent);
+  const pais = (row.pais ?? "").trim();
+  if (isExpositoresProject(row.projectKey)) {
+    const empresa = (row.empresa ?? "").trim() || parsed.empresa;
+    const name = parsed.name || row.qrContent.trim().slice(0, 80);
+    return { name, empresa, pais, telefono: parsed.telefono, email: parsed.email };
+  }
+  return {
+    name: parsed.name,
+    empresa: parsed.empresa,
+    pais,
+    telefono: parsed.telefono,
+    email: parsed.email,
+  };
 }
 
 const LIMIT_PER_PROJECT = 3000;
@@ -148,15 +181,16 @@ function ImprimirExpositoresContent() {
     if (searchNormalized) {
       const terms = searchNormalized.split(/\s+/).filter(Boolean);
       list = list.filter((r) => {
-        const parsed = getParsedFieldsFromQrContent(r.qrContent);
+        const display = getDisplayFields(r);
         const searchable = [
           r.qrContent,
           r.pais,
+          r.empresa,
           r.projectLabel,
-          parsed.name,
-          parsed.empresa,
-          parsed.telefono,
-          parsed.email,
+          display.name,
+          display.empresa,
+          display.telefono,
+          display.email,
         ].map(normalizeForSearch);
         const full = searchable.join(" ");
         return terms.every((term) => full.includes(term));
@@ -166,11 +200,11 @@ function ImprimirExpositoresContent() {
   }, [allRows, filterBase, searchNormalized]);
 
   const openPrintLabel = (row: RowWithProject) => {
-    const { name, empresa } = getParsedFieldsFromQrContent(row.qrContent);
+    const { name, empresa, pais } = getDisplayFields(row);
     const labelUrl = new URL("/label/directo", window.location.origin);
     labelUrl.searchParams.set("project", row.projectKey);
     labelUrl.searchParams.set("qr_content", encodeURIComponent(row.qrContent));
-    labelUrl.searchParams.set("pais", encodeURIComponent(row.pais));
+    labelUrl.searchParams.set("pais", encodeURIComponent(pais));
     if (name) labelUrl.searchParams.set("name", encodeURIComponent(name));
     if (empresa) labelUrl.searchParams.set("empresa", encodeURIComponent(empresa));
     window.open(labelUrl.toString(), "_blank", "noopener,noreferrer,width=420,height=380");
@@ -293,7 +327,7 @@ function ImprimirExpositoresContent() {
           QR Content — datos filtrados y con formato de impresión
         </h2>
         <p style={{ margin: 0, padding: "0.5rem 1.25rem", fontSize: "0.8rem", color: "#94a3b8", borderBottom: "1px solid #334155" }}>
-          Información obtenida y filtrada del QR Content con el mismo parser que CodeREADr (Nombre=, Empresa=, Teléfono=, Email=, etc.). País desde la tabla. Busca por cualquier campo. Imprimir = mismo formato. Ctrl+P.
+          <strong>Expos normales:</strong> Nombre, Empresa, Teléfono, Email del parser del QR; País de la tabla. <strong>Bases EXPOSITORES:</strong> formato CSV QR Content, Empresa, País — Empresa y País se muestran desde la tabla; Nombre = QR Content o parser si hay. Busca por cualquier campo. Imprimir = mismo formato. Ctrl+P.
         </p>
         <div style={tableStyles.wrapper}>
           <table style={tableStyles.table}>
@@ -324,7 +358,7 @@ function ImprimirExpositoresContent() {
                 </tr>
               ) : (
                 filteredRows.map((row, idx) => {
-                  const parsed = getParsedFieldsFromQrContent(row.qrContent);
+                  const display = getDisplayFields(row);
                   return (
                     <tr
                       key={`${row.projectKey}-${idx}-${row.qrContent.slice(0, 40)}`}
@@ -339,32 +373,32 @@ function ImprimirExpositoresContent() {
                         {row.projectLabel}
                       </td>
                       <td style={{ ...tableStyles.td, fontWeight: 600, color: "#f1f5f9" }}>
-                        {parsed.name || "—"}
-                        {hasUnprintableOrRisky(parsed.name) && (
+                        {display.name || "—"}
+                        {hasUnprintableOrRisky(display.name) && (
                           <span title="Contiene % o caracteres que pueden no imprimirse bien" style={{ marginLeft: 4, color: "#fbbf24" }}>⚠</span>
                         )}
                       </td>
                       <td style={{ ...tableStyles.td, ...tableStyles.tdMuted, whiteSpace: "nowrap" }}>
-                        {parsed.telefono || "—"}
-                        {hasUnprintableOrRisky(parsed.telefono) && (
+                        {display.telefono || "—"}
+                        {hasUnprintableOrRisky(display.telefono) && (
                           <span title="Contiene % o caracteres que pueden no imprimirse bien" style={{ marginLeft: 4, color: "#fbbf24" }}>⚠</span>
                         )}
                       </td>
                       <td style={{ ...tableStyles.td, ...tableStyles.tdMuted, fontSize: "0.85rem" }}>
-                        {parsed.email || "—"}
-                        {hasUnprintableOrRisky(parsed.email) && (
+                        {display.email || "—"}
+                        {hasUnprintableOrRisky(display.email) && (
                           <span title="Contiene % o caracteres que pueden no imprimirse bien" style={{ marginLeft: 4, color: "#fbbf24" }}>⚠</span>
                         )}
                       </td>
                       <td style={{ ...tableStyles.td, ...tableStyles.tdMuted }}>
-                        {parsed.empresa || "—"}
-                        {hasUnprintableOrRisky(parsed.empresa) && (
+                        {display.empresa || "—"}
+                        {hasUnprintableOrRisky(display.empresa) && (
                           <span title="Contiene % o caracteres que pueden no imprimirse bien" style={{ marginLeft: 4, color: "#fbbf24" }}>⚠</span>
                         )}
                       </td>
                       <td style={{ ...tableStyles.td, color: "#34d399", whiteSpace: "nowrap", fontWeight: 500 }}>
-                        {row.pais || "—"}
-                        {hasUnprintableOrRisky(row.pais) && (
+                        {display.pais || "—"}
+                        {hasUnprintableOrRisky(display.pais) && (
                           <span title="Contiene % o caracteres que pueden no imprimirse bien" style={{ marginLeft: 4, color: "#fbbf24" }}>⚠</span>
                         )}
                       </td>

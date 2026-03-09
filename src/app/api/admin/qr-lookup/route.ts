@@ -21,11 +21,11 @@ export async function GET(req: NextRequest) {
     const rows = await prisma.qrCountryLookup.findMany({
       orderBy: { qrContent: "asc" },
       take: limit,
-      select: { qrContent: true, pais: true },
+      select: { qrContent: true, pais: true, empresa: true },
     });
     return NextResponse.json({
       project,
-      qrLookup: rows.map((r) => ({ qrContent: r.qrContent, pais: r.pais })),
+      qrLookup: rows.map((r) => ({ qrContent: r.qrContent, pais: r.pais, empresa: r.empresa ?? undefined })),
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
