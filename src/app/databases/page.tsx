@@ -64,6 +64,9 @@ function DatabasesContent() {
   const [uploadLoading, setUploadLoading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
+  const [clearLoading, setClearLoading] = useState(false);
+  const [clearError, setClearError] = useState<string | null>(null);
+  const [clearSuccess, setClearSuccess] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchStats = useCallback(() => {
@@ -145,6 +148,36 @@ function DatabasesContent() {
       setUploadError(e instanceof Error ? e.message : String(e));
     } finally {
       setUploadLoading(false);
+    }
+  };
+
+  const handleClearQrLookup = async () => {
+    if (!uploadToken.trim()) {
+      setClearError("Introduce el token de administrador (WEBHOOK_SECRET).");
+      return;
+    }
+    const label = PROJECTS.find((p) => p.key === selectedProject)?.label ?? selectedProject;
+    if (!confirm(`¿Borrar toda la tabla QR → país de "${label}"? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+    setClearError(null);
+    setClearSuccess(null);
+    setClearLoading(true);
+    try {
+      const url = new URL("/api/admin/clear-qr-lookup", window.location.origin);
+      url.searchParams.set("project", selectedProject);
+      url.searchParams.set("token", uploadToken.trim());
+      const res = await fetch(url.toString(), { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.detail ?? data.error ?? res.statusText);
+      }
+      setClearSuccess(data.message ?? "Tabla borrada.");
+      setRefreshTrigger((t) => t + 1);
+    } catch (e) {
+      setClearError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setClearLoading(false);
     }
   };
 
@@ -279,9 +312,9 @@ function DatabasesContent() {
           background: "#0f172a",
         }}
       >
-        <h2 style={{ margin: "0 0 0.5rem", fontSize: "1.1rem" }}>Subir CSV (qr_content,pais) a esta expo</h2>
+        <h2 style={{ margin: "0 0 0.5rem", fontSize: "1.1rem" }}>Subir CSV a esta expo</h2>
         <p style={{ margin: "0 0 1rem", fontSize: "0.85rem", color: "#94a3b8" }}>
-          Elige la expo arriba, introduce el token y sube un CSV con cabecera <code>qr_content,pais</code>. Se cargará en la base de <strong>{currentLabel}</strong>.
+          Invitados: 2 columnas (qr_content, pais). Expositores: 3 columnas (QR Content, País, Empresa); no se verifica cabecera, se cargan todas las líneas. Se cargará en la base de <strong>{currentLabel}</strong>.
         </p>
         <form onSubmit={handleUploadCsv} style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", alignItems: "flex-end" }}>
           <div style={{ minWidth: 200 }}>
@@ -348,6 +381,34 @@ function DatabasesContent() {
         {uploadSuccess && (
           <p style={{ margin: "0.75rem 0 0", color: "#34d399", fontSize: "0.85rem" }}>{uploadSuccess}</p>
         )}
+        <div style={{ marginTop: "1.5rem", paddingTop: "1rem", borderTop: "1px solid #334155" }}>
+          <h3 style={{ margin: "0 0 0.5rem", fontSize: "1rem" }}>Borrar base de datos (QR → país)</h3>
+          <p style={{ margin: "0 0 0.75rem", fontSize: "0.85rem", color: "#94a3b8" }}>
+            Elimina todas las filas de la tabla <strong>qr_country_lookup</strong> de esta expo. Usa el mismo token de arriba.
+          </p>
+          <button
+            type="button"
+            onClick={handleClearQrLookup}
+            disabled={clearLoading}
+            style={{
+              padding: "0.5rem 1rem",
+              background: clearLoading ? "#475569" : "#b91c1c",
+              color: "#fff",
+              border: "none",
+              borderRadius: 6,
+              fontSize: "0.9rem",
+              cursor: clearLoading ? "not-allowed" : "pointer",
+            }}
+          >
+            {clearLoading ? "Borrando…" : "Borrar base de datos (esta expo)"}
+          </button>
+          {clearError && (
+            <p style={{ margin: "0.75rem 0 0", color: "#f87171", fontSize: "0.85rem" }}>{clearError}</p>
+          )}
+          {clearSuccess && (
+            <p style={{ margin: "0.75rem 0 0", color: "#34d399", fontSize: "0.85rem" }}>{clearSuccess}</p>
+          )}
+        </div>
       </section>
 
       {stats && !loading && (
