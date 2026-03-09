@@ -147,22 +147,30 @@ function ImprimirExpositoresContent() {
     setLoading(true);
     setError(null);
     Promise.all(
-      PROJECTS.map(({ key, label }) => {
+      PROJECTS.map(async ({ key, label }) => {
         const url = new URL("/api/admin/qr-lookup", window.location.origin);
         url.searchParams.set("project", key);
         url.searchParams.set("limit", String(LIMIT_PER_PROJECT));
-        return fetch(url.toString())
-          .then((r) => (r.ok ? r.json() : Promise.resolve({ qrLookup: [] })))
-          .then((data: { qrLookup?: QrLookupRow[] }) =>
-            (data.qrLookup ?? []).map((row) => ({
-              ...row,
-              projectKey: key,
-              projectLabel: label,
-            }))
-          );
+        const r = await fetch(url.toString());
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          const msg = (data?.detail ?? data?.error ?? r.statusText) || "Error al cargar";
+          return { rows: [] as RowWithProject[], error: `${label}: ${msg}` };
+        }
+        const rows = (data?.qrLookup ?? []).map((row: QrLookupRow) => ({
+          ...row,
+          projectKey: key,
+          projectLabel: label,
+        }));
+        return { rows, error: undefined as string | undefined };
       })
     )
-      .then((arrays) => setAllRows(arrays.flat()))
+      .then((results) => {
+        const all = results.flatMap((r) => r.rows);
+        const errors = results.map((r) => r.error).filter(Boolean) as string[];
+        setAllRows(all);
+        setError(errors.length > 0 ? errors.join(" | ") : null);
+      })
       .catch((e) => {
         setError(e instanceof Error ? e.message : String(e));
         setAllRows([]);
@@ -248,6 +256,22 @@ function ImprimirExpositoresContent() {
         >
           <strong>Error</strong>
           <p style={{ margin: "0.5rem 0 0", fontSize: "0.9rem" }}>{error}</p>
+          <button
+            type="button"
+            onClick={() => fetchAllQrLookup()}
+            style={{
+              marginTop: "0.75rem",
+              padding: "0.4rem 0.75rem",
+              background: "#1e293b",
+              color: "#e2e8f0",
+              border: "1px solid #475569",
+              borderRadius: 6,
+              fontSize: "0.85rem",
+              cursor: "pointer",
+            }}
+          >
+            Reintentar
+          </button>
         </section>
       )}
 
