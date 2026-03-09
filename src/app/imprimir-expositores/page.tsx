@@ -16,18 +16,11 @@ const PROJECTS = [
   { key: "expo_electronica_expositores_2026", label: "EXPO ELECTRÓNICA EXPOSITORES 2026" },
 ] as const;
 
-type PrintJobRow = {
-  id: string;
-  name: string;
-  empresa: string | null;
-  pais: string | null;
-  createdAt: string;
-  printedAt: string | null;
-};
+type QrLookupRow = { qrContent: string; pais: string };
 
-type JobWithProject = PrintJobRow & { projectKey: string; projectLabel: string };
+type RowWithProject = QrLookupRow & { projectKey: string; projectLabel: string };
 
-const LIMIT_PER_PROJECT = 400;
+const LIMIT_PER_PROJECT = 3000;
 
 export default function ImprimirExpositoresPage() {
   return (
@@ -38,59 +31,65 @@ export default function ImprimirExpositoresPage() {
 }
 
 function ImprimirExpositoresContent() {
-  const [allJobs, setAllJobs] = useState<JobWithProject[]>([]);
+  const [allRows, setAllRows] = useState<RowWithProject[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterBase, setFilterBase] = useState<string>("");
 
-  const fetchAllBases = useCallback(() => {
+  const fetchAllQrLookup = useCallback(() => {
     setLoading(true);
     setError(null);
     Promise.all(
       PROJECTS.map(({ key, label }) => {
-        const url = new URL("/api/print-jobs", window.location.origin);
+        const url = new URL("/api/admin/qr-lookup", window.location.origin);
         url.searchParams.set("project", key);
-        url.searchParams.set("printed", "all");
         url.searchParams.set("limit", String(LIMIT_PER_PROJECT));
         return fetch(url.toString())
-          .then((r) => (r.ok ? r.json() : Promise.resolve([])))
-          .then((data: PrintJobRow[]) => data.map((j) => ({ ...j, projectKey: key, projectLabel: label })));
+          .then((r) => (r.ok ? r.json() : Promise.resolve({ qrLookup: [] })))
+          .then((data: { qrLookup?: QrLookupRow[] }) =>
+            (data.qrLookup ?? []).map((row) => ({
+              ...row,
+              projectKey: key,
+              projectLabel: label,
+            }))
+          );
       })
     )
-      .then((arrays) => setAllJobs(arrays.flat()))
+      .then((arrays) => setAllRows(arrays.flat()))
       .catch((e) => {
         setError(e instanceof Error ? e.message : String(e));
-        setAllJobs([]);
+        setAllRows([]);
       })
       .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
-    fetchAllBases();
-  }, [fetchAllBases]);
+    fetchAllQrLookup();
+  }, [fetchAllQrLookup]);
 
   const searchLower = searchQuery.trim().toLowerCase();
-  const filteredJobs = useMemo(() => {
-    let list = allJobs;
+  const filteredRows = useMemo(() => {
+    let list = allRows;
     if (filterBase) {
-      list = list.filter((j) => j.projectKey === filterBase);
+      list = list.filter((r) => r.projectKey === filterBase);
     }
     if (searchLower) {
       list = list.filter(
-        (j) =>
-          (j.name ?? "").toLowerCase().includes(searchLower) ||
-          (j.empresa ?? "").toLowerCase().includes(searchLower) ||
-          (j.pais ?? "").toLowerCase().includes(searchLower) ||
-          (j.projectLabel ?? "").toLowerCase().includes(searchLower)
+        (r) =>
+          (r.qrContent ?? "").toLowerCase().includes(searchLower) ||
+          (r.pais ?? "").toLowerCase().includes(searchLower) ||
+          (r.projectLabel ?? "").toLowerCase().includes(searchLower)
       );
     }
     return list;
-  }, [allJobs, filterBase, searchLower]);
+  }, [allRows, filterBase, searchLower]);
 
-  const openPrintLabel = (jobId: string, projectKey: string) => {
-    const labelUrl = new URL(`/label/${jobId}`, window.location.origin);
-    labelUrl.searchParams.set("project", projectKey);
+  const openPrintLabel = (row: RowWithProject) => {
+    const labelUrl = new URL("/label/directo", window.location.origin);
+    labelUrl.searchParams.set("project", row.projectKey);
+    labelUrl.searchParams.set("qr_content", encodeURIComponent(row.qrContent));
+    labelUrl.searchParams.set("pais", encodeURIComponent(row.pais));
     window.open(labelUrl.toString(), "_blank", "noopener,noreferrer,width=420,height=380");
   };
 
@@ -123,7 +122,7 @@ function ImprimirExpositoresContent() {
       </section>
 
       <p style={{ margin: "0 0 1rem", color: "#94a3b8", fontSize: "0.9rem" }}>
-        Registros cargados en todas las bases de datos. Puedes imprimir cualquier etiqueta directamente sin pasar por CodeREADr.
+        Contenido de la tabla <strong>QR → país</strong> cargado en cada base (CSV). Son los datos que se usan para comparar el QR y obtener empresa/país. Imprime la etiqueta directamente desde aquí, sin CodeREADr.
       </p>
 
       {error && (
@@ -159,7 +158,7 @@ function ImprimirExpositoresContent() {
             <input
               id="search"
               type="search"
-              placeholder="Nombre, empresa, país o base…"
+              placeholder="QR content, país o base…"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{
@@ -201,7 +200,7 @@ function ImprimirExpositoresContent() {
           </div>
         </div>
         <p style={{ margin: "0.75rem 0 0", fontSize: "0.8rem", color: "#64748b" }}>
-          {loading ? "Cargando todas las bases…" : `${filteredJobs.length} de ${allJobs.length} registros`}
+          {loading ? "Cargando tablas QR → país de todas las bases…" : `${filteredRows.length} de ${allRows.length} filas`}
         </p>
       </section>
 
@@ -214,56 +213,62 @@ function ImprimirExpositoresContent() {
         }}
       >
         <h2 style={{ margin: 0, padding: "1rem", fontSize: "1rem", borderBottom: "1px solid #334155", color: "#e2e8f0" }}>
-          Registros (todas las bases)
+          QR Content cargado (tabla QR → país)
         </h2>
         <p style={{ margin: 0, padding: "0.5rem 1rem", fontSize: "0.8rem", color: "#94a3b8", borderBottom: "1px solid #334155" }}>
-          Haz clic en &quot;Imprimir&quot; para abrir la etiqueta en una nueva ventana. Imprime con Ctrl+P (o Cmd+P). No requiere CodeREADr.
+          Clic en &quot;Imprimir&quot; abre la etiqueta con este contenido y país. Imprime con Ctrl+P (o Cmd+P).
         </p>
         <div style={{ overflowX: "auto", maxHeight: "65vh", overflowY: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
             <thead style={{ position: "sticky", top: 0, background: "#1e293b", zIndex: 1 }}>
               <tr style={{ color: "#94a3b8" }}>
                 <th style={{ textAlign: "left", padding: "0.6rem 0.75rem" }}>Base de datos</th>
-                <th style={{ textAlign: "left", padding: "0.6rem 0.75rem" }}>Nombre</th>
-                <th style={{ textAlign: "left", padding: "0.6rem 0.75rem" }}>Empresa</th>
-                <th style={{ textAlign: "left", padding: "0.6rem 0.75rem" }}>País</th>
-                <th style={{ textAlign: "left", padding: "0.6rem 0.75rem" }}>Creado</th>
-                <th style={{ textAlign: "left", padding: "0.6rem 0.75rem" }}>Impreso</th>
+                <th style={{ textAlign: "left", padding: "0.6rem 0.75rem" }}>QR Content</th>
+                <th style={{ textAlign: "left", padding: "0.6rem 0.75rem", width: 120 }}>País</th>
                 <th style={{ textAlign: "right", padding: "0.6rem 0.75rem" }}>Acción</th>
               </tr>
             </thead>
             <tbody>
-              {loading && allJobs.length === 0 ? (
+              {loading && allRows.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ padding: "2rem", color: "#64748b", textAlign: "center" }}>
-                    Cargando registros de todas las bases…
+                  <td colSpan={4} style={{ padding: "2rem", color: "#64748b", textAlign: "center" }}>
+                    Cargando datos de todas las bases…
                   </td>
                 </tr>
-              ) : filteredJobs.length === 0 ? (
+              ) : filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ padding: "2rem", color: "#64748b" }}>
-                    {allJobs.length === 0 ? "No hay registros en ninguna base." : "Ningún registro coincide con el filtro o búsqueda."}
+                  <td colSpan={4} style={{ padding: "2rem", color: "#64748b" }}>
+                    {allRows.length === 0 ? "No hay datos QR → país en ninguna base. Sube CSV en Ver bases de datos." : "Ninguna fila coincide con el filtro o búsqueda."}
                   </td>
                 </tr>
               ) : (
-                filteredJobs.map((job) => (
-                  <tr key={`${job.projectKey}-${job.id}`} style={{ borderTop: "1px solid #1e293b" }}>
+                filteredRows.map((row, idx) => (
+                  <tr key={`${row.projectKey}-${idx}-${row.qrContent.slice(0, 30)}`} style={{ borderTop: "1px solid #1e293b" }}>
                     <td style={{ padding: "0.6rem 0.75rem", color: "#94a3b8", fontSize: "0.8rem", whiteSpace: "nowrap" }}>
-                      {job.projectLabel}
+                      {row.projectLabel}
                     </td>
-                    <td style={{ padding: "0.6rem 0.75rem", color: "#e2e8f0" }}>{job.name}</td>
-                    <td style={{ padding: "0.6rem 0.75rem", color: "#cbd5e1" }}>{job.empresa ?? "—"}</td>
-                    <td style={{ padding: "0.6rem 0.75rem", color: "#cbd5e1" }}>{job.pais ?? "—"}</td>
-                    <td style={{ padding: "0.6rem 0.75rem", color: "#94a3b8", whiteSpace: "nowrap" }}>
-                      {new Date(job.createdAt).toLocaleString("es")}
+                    <td
+                      style={{
+                        padding: "0.6rem 0.75rem",
+                        color: "#e2e8f0",
+                        fontFamily: "monospace",
+                        fontSize: "0.8rem",
+                        maxWidth: 320,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                      title={row.qrContent}
+                    >
+                      {row.qrContent}
                     </td>
-                    <td style={{ padding: "0.6rem 0.75rem", color: job.printedAt ? "#34d399" : "#fbbf24" }}>
-                      {job.printedAt ? new Date(job.printedAt).toLocaleString("es") : "Pendiente"}
+                    <td style={{ padding: "0.6rem 0.75rem", color: "#34d399", whiteSpace: "nowrap" }}>
+                      {row.pais}
                     </td>
                     <td style={{ padding: "0.6rem 0.75rem", textAlign: "right" }}>
                       <button
                         type="button"
-                        onClick={() => openPrintLabel(job.id, job.projectKey)}
+                        onClick={() => openPrintLabel(row)}
                         style={{
                           padding: "0.35rem 0.65rem",
                           background: "#0ea5e9",
