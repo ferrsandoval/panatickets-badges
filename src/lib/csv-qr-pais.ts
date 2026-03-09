@@ -18,13 +18,11 @@ function detectDelimiter(line: string, minParts: number): "," | ";" {
 
 /**
  * Parsea una línea CSV.
- * hasEmpresa: si true, formato EXPOSITORES con 3 columnas.
- * expositoresOrder: "pais_empresa" = col2=País, col3=Empresa. "empresa_pais" = col2=Empresa, col3=País.
+ * Expositores: col1=QR Content, col2=País, col3=Empresa (mismo formato para todos).
  */
 export function parseCsvLine(
   line: string,
   hasEmpresa: boolean,
-  expositoresOrder: "pais_empresa" | "empresa_pais" = "pais_empresa",
   delimiter: "," | ";" = ","
 ): { qrContent: string; pais: string; empresa?: string | null } | null {
   const trimmed = line.trim();
@@ -32,12 +30,10 @@ export function parseCsvLine(
   const parts = trimmed.split(delimiter);
   if (hasEmpresa) {
     if (parts.length < 3) return null;
-    const col3 = parts.pop()?.trim().replace(/^["']|["']$/g, "") ?? "";
-    const col2 = parts.pop()?.trim().replace(/^["']|["']$/g, "") ?? "";
+    const empresa = parts.pop()?.trim().replace(/^["']|["']$/g, "") ?? "";
+    const pais = parts.pop()?.trim().replace(/^["']|["']$/g, "") ?? "";
     const qrContent = parts.join(delimiter).trim().replace(/^["']|["']$/g, "");
     if (!qrContent) return null;
-    const [pais, empresa] =
-      expositoresOrder === "empresa_pais" ? [col3, col2] : [col2, col3];
     return { qrContent, pais, empresa: empresa || null };
   }
   // Formato invitados: qr_content,pais (2 columnas)
@@ -66,10 +62,8 @@ function detectEmpresaHeader(header: string): boolean {
 }
 
 export type ParseCsvOptions = {
-  /** Si "expositores", fuerza formato 3 columnas. Si "invitados", fuerza 2 columnas. Por defecto "auto". */
+  /** Si "expositores", fuerza formato 3 columnas (QR Content, País, Empresa). Si "invitados", 2 columnas. Por defecto "auto". */
   format?: "auto" | "expositores" | "invitados";
-  /** Solo para expositores. "pais_empresa" = col2=País, col3=Empresa. "empresa_pais" = col2=Empresa, col3=País. */
-  expositoresColumnOrder?: "pais_empresa" | "empresa_pais";
 };
 
 /**
@@ -79,7 +73,6 @@ export type ParseCsvOptions = {
  */
 export function parseCsvText(text: string, options?: ParseCsvOptions): CsvQrPaisRow[] {
   const format = options?.format ?? "auto";
-  const expositoresOrder = options?.expositoresColumnOrder ?? "pais_empresa";
   const lines = text.split(/\r?\n/).filter((l) => l.trim());
   const hasEmpresa =
     format === "expositores" ? true : format === "invitados" ? false : detectEmpresaHeader(lines[0] ?? "");
@@ -96,24 +89,10 @@ export function parseCsvText(text: string, options?: ParseCsvOptions): CsvQrPais
   const firstLine = dataLines[0] ?? "";
   const delimiter = detectDelimiter(firstLine, minParts);
 
-  const tryParse = (order: "pais_empresa" | "empresa_pais") => {
-    const result: CsvQrPaisRow[] = [];
-    for (const line of dataLines) {
-      const row = parseCsvLine(line, hasEmpresa, order, delimiter);
-      if (row) result.push(row);
-    }
-    return result;
-  };
-
-  if (hasEmpresa && expositoresOrder === "empresa_pais") {
-    const withEmpresaPais = tryParse("empresa_pais");
-    const withPaisEmpresa = tryParse("pais_empresa");
-    const countValid = (r: CsvQrPaisRow[]) =>
-      r.filter((x) => (x.pais ?? "").trim() && (x.empresa ?? "").trim()).length;
-    return countValid(withEmpresaPais) >= countValid(withPaisEmpresa)
-      ? withEmpresaPais
-      : withPaisEmpresa;
+  const rows: CsvQrPaisRow[] = [];
+  for (const line of dataLines) {
+    const row = parseCsvLine(line, hasEmpresa, delimiter);
+    if (row) rows.push(row);
   }
-
-  return tryParse(expositoresOrder);
+  return rows;
 }
