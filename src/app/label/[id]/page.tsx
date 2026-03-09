@@ -35,6 +35,16 @@ function getExpoLabel(project: string | null): string | null {
       return "EXPO TECH 2026";
     case "expo_electronica_2026":
       return "EXPO ELECTRÓNICA 2026";
+    case "expo_logistica_expositores_2026":
+      return "EXPO LOGISTICA EXPOSITORES 2026";
+    case "expo_turismo_expositores_2026":
+      return "EXPO TURISMO EXPOSITORES 2026";
+    case "expo_comer_expositores_2026":
+      return "EXPOCOMER EXPOSITORES 2026";
+    case "expo_tech_expositores_2026":
+      return "EXPO TECH EXPOSITORES 2026";
+    case "expo_electronica_expositores_2026":
+      return "EXPO ELECTRÓNICA EXPOSITORES 2026";
     default:
       return null;
   }

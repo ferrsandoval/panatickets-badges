@@ -15,6 +15,11 @@ const CSV_FILE_TO_PROJECT: Record<string, string> = {
   "expo_comer.csv": "expo_comer_2026",
   "expo_tech.csv": "expo_tech_2026",
   "expo_electronica.csv": "expo_electronica_2026",
+  "expo_logistica_expositores.csv": "expo_logistica_expositores_2026",
+  "expo_turismo_expositores.csv": "expo_turismo_expositores_2026",
+  "expo_comer_expositores.csv": "expo_comer_expositores_2026",
+  "expo_tech_expositores.csv": "expo_tech_expositores_2026",
+  "expo_electronica_expositores.csv": "expo_electronica_expositores_2026",
 };
 
 function getProjectForCsvFile(filename: string): string | null {

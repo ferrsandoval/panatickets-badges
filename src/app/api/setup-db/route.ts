@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(
       {
         error: "Falta project",
-        detail: "Añade ?project=expo_logistica_2026 (o expo_turismo_2026, expo_comer_2026, expo_tech_2026, expo_electronica_2026).",
+        detail: "Añade ?project=expo_logistica_2026 (o expo_turismo_2026, expo_comer_2026, expo_tech_2026, expo_electronica_2026, expo_*_expositores_2026).",
       },
       { status: 400 }
     );

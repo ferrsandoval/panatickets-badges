@@ -31,17 +31,28 @@ Con tus variables actuales (las que terminan en `_DATABASE_URL`, etc.) la app ya
 | `DATABASE_URL_EXPO_COMER_2026` | `postgres://f7781e2cb2287b79320777622a5c736663cdd6aa14ad7de27b4ec0d2f38c248e:sk_wZeIc_Uu0WfsJ5TqfC_4S@db.prisma.io:5432/postgres?sslmode=require` |
 | `DATABASE_URL_EXPO_TECH_2026` | `postgres://1c40a8bf13740b731310632fc3cd5d5fa21813b2d9aa168d675424e63f66ab7a:sk_vWszETqpQv4tYgM7OlgDf@db.prisma.io:5432/postgres?sslmode=require` |
 | `DATABASE_URL_EXPO_ELECTRONICA_2026` | `postgres://4ab617ad0627b263e76919a51a0d2a722c1dd4277f55b9d4ca30078631673006:sk_-oVc8jucleBsSqfAYhIc4@db.prisma.io:5432/postgres?sslmode=require` |
+| `DATABASE_URL_EXPO_LOGISTICA_EXPOSITORES_2026` | *(crear base en Prisma/Vercel y pegar URL)* |
+| `DATABASE_URL_EXPO_TURISMO_EXPOSITORES_2026` | *(crear base en Prisma/Vercel y pegar URL)* |
+| `DATABASE_URL_EXPO_COMER_EXPOSITORES_2026` | *(crear base en Prisma/Vercel y pegar URL)* |
+| `DATABASE_URL_EXPO_TECH_EXPOSITORES_2026` | *(crear base en Prisma/Vercel y pegar URL)* |
+| `DATABASE_URL_EXPO_ELECTRONICA_EXPOSITORES_2026` | *(crear base en Prisma/Vercel y pegar URL)* |
 
-En Vercel, al crear cada variable, en **Value** pega solo la URL (la parte que está entre comillas en la tabla), **sin** las comillas.
+En Vercel, al crear cada variable, en **Value** pega solo la URL (la parte que está entre comillas en la tabla), **sin** las comillas. Para las 5 bases EXPOSITORES, crea una base Postgres nueva en Prisma/Vercel por cada una y usa su URL.
 
 ### Variables con sufijo `_DATABASE_URL` (para .env local o referencia)
 
 ```
-DATABASE_URL_EXPO_LOGISTICA_2026_DATABASE_URL=postgres://6c15115cf5b990aa76f9efe2746b61c8a05c07a62b1eb2cad2f8971f1fd10d3c:sk_4of8NBp6RYLVV2QDWe3xe@db.prisma.io:5432/postgres?sslmode=require
-DATABASE_URL_EXPO_TURISMO_2026_DATABASE_URL=postgres://d6a96757bb43fcc4bc53f0b7e97b2700f8aff6f3f867a452ec393afa90eae09a:sk_LomFLoQx1CeU_ADqEci5P@db.prisma.io:5432/postgres?sslmode=require
-DATABASE_URL_EXPO_COMER_2026_DATABASE_URL=postgres://f7781e2cb2287b79320777622a5c736663cdd6aa14ad7de27b4ec0d2f38c248e:sk_wZeIc_Uu0WfsJ5TqfC_4S@db.prisma.io:5432/postgres?sslmode=require
-DATABASE_URL_EXPO_TECH_2026_DATABASE_URL=postgres://1c40a8bf13740b731310632fc3cd5d5fa21813b2d9aa168d675424e63f66ab7a:sk_vWszETqpQv4tYgM7OlgDf@db.prisma.io:5432/postgres?sslmode=require
-DATABASE_URL_EXPO_ELECTRONICA_2026_DATABASE_URL=postgres://4ab617ad0627b263e76919a51a0d2a722c1dd4277f55b9d4ca30078631673006:sk_-oVc8jucleBsSqfAYhIc4@db.prisma.io:5432/postgres?sslmode=require
+DATABASE_URL_EXPO_LOGISTICA_2026_DATABASE_URL=postgres://...
+DATABASE_URL_EXPO_TURISMO_2026_DATABASE_URL=postgres://...
+DATABASE_URL_EXPO_COMER_2026_DATABASE_URL=postgres://...
+DATABASE_URL_EXPO_TECH_2026_DATABASE_URL=postgres://...
+DATABASE_URL_EXPO_ELECTRONICA_2026_DATABASE_URL=postgres://...
+# Expos EXPOSITORES (crear 5 bases nuevas en Prisma/Vercel):
+DATABASE_URL_EXPO_LOGISTICA_EXPOSITORES_2026_DATABASE_URL=postgres://...
+DATABASE_URL_EXPO_TURISMO_EXPOSITORES_2026_DATABASE_URL=postgres://...
+DATABASE_URL_EXPO_COMER_EXPOSITORES_2026_DATABASE_URL=postgres://...
+DATABASE_URL_EXPO_TECH_EXPOSITORES_2026_DATABASE_URL=postgres://...
+DATABASE_URL_EXPO_ELECTRONICA_EXPOSITORES_2026_DATABASE_URL=postgres://...
 ```
 
 ---
@@ -49,14 +60,19 @@ DATABASE_URL_EXPO_ELECTRONICA_2026_DATABASE_URL=postgres://4ab617ad0627b263e7691
 ## Qué hacer ahora (paso a paso)
 
 1. **Variables en Vercel**  
-   Asegúrate de tener las 5 variables anteriores (o las equivalentes con otro sufijo) en **Settings → Environment Variables**. Luego haz **Redeploy** (Deployments → ⋯ → Redeploy).
+   Asegúrate de tener las 10 variables (5 expos + 5 expos EXPOSITORES) en **Settings → Environment Variables**. Para las 5 bases EXPOSITORES, crea una base Postgres nueva en Prisma/Vercel por cada una. Luego haz **Redeploy** (Deployments → ⋯ → Redeploy).
 
 2. **Crear tablas en cada base** (una sola vez por expo). Sustituye `TU_APP` y `TU_TOKEN` y abre cada URL en el navegador:
    - https://**TU_APP**.vercel.app/api/setup-db?token=**TU_TOKEN**&project=expo_logistica_2026
    - https://**TU_APP**.vercel.app/api/setup-db?token=**TU_TOKEN**&project=expo_turismo_2026
    - https://**TU_APP**.vercel.app/api/setup-db?token=**TU_TOKEN**&project=expo_comer_2026
    - https://**TU_APP**.vercel.app/api/setup-db?token=**TU_TOKEN**&project=expo_tech_2026
-   - https://**TU_APP**.vercel.app/api/setup-db?token=**TU_TOKEN**&project=expo_electronica_2026  
+   - https://**TU_APP**.vercel.app/api/setup-db?token=**TU_TOKEN**&project=expo_electronica_2026
+   - https://**TU_APP**.vercel.app/api/setup-db?token=**TU_TOKEN**&project=expo_logistica_expositores_2026
+   - https://**TU_APP**.vercel.app/api/setup-db?token=**TU_TOKEN**&project=expo_turismo_expositores_2026
+   - https://**TU_APP**.vercel.app/api/setup-db?token=**TU_TOKEN**&project=expo_comer_expositores_2026
+   - https://**TU_APP**.vercel.app/api/setup-db?token=**TU_TOKEN**&project=expo_tech_expositores_2026
+   - https://**TU_APP**.vercel.app/api/setup-db?token=**TU_TOKEN**&project=expo_electronica_expositores_2026  
    Debes ver algo como: `{"ok":true,"message":"Tablas print_jobs y qr_country_lookup creadas/actualizadas..."}`
 
 3. **Cargar QR → país (lookup)**  
@@ -95,7 +111,14 @@ DATABASE_URL_EXPO_ELECTRONICA_2026_DATABASE_URL=postgres://4ab617ad0627b263e7691
    Cada archivo se importa en la base de su expo:
    - `EXPO_LOGISTICA.csv` → base de expo_logistica_2026  
    - `EXPO_TURISMO.csv` → base de expo_turismo_2026  
-   - etc.
+   - `EXPO_COMER.csv` → base de expo_comer_2026  
+   - `EXPO_TECH.csv` → base de expo_tech_2026  
+   - `EXPO_ELECTRONICA.csv` → base de expo_electronica_2026  
+   - `EXPO_LOGISTICA_EXPOSITORES.csv` → base de expo_logistica_expositores_2026  
+   - `EXPO_TURISMO_EXPOSITORES.csv` → base de expo_turismo_expositores_2026  
+   - `EXPO_COMER_EXPOSITORES.csv` → base de expo_comer_expositores_2026  
+   - `EXPO_TECH_EXPOSITORES.csv` → base de expo_tech_expositores_2026  
+   - `EXPO_ELECTRONICA_EXPOSITORES.csv` → base de expo_electronica_expositores_2026
 
 ---
 

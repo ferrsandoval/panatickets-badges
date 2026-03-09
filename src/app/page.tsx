@@ -17,6 +17,11 @@ const PROJECTS = [
   { key: "expo_comer_2026", label: "EXPOCOMER 2026" },
   { key: "expo_tech_2026", label: "EXPO TECH 2026" },
   { key: "expo_electronica_2026", label: "EXPO ELECTRÓNICA 2026" },
+  { key: "expo_logistica_expositores_2026", label: "EXPO LOGISTICA EXPOSITORES 2026" },
+  { key: "expo_turismo_expositores_2026", label: "EXPO TURISMO EXPOSITORES 2026" },
+  { key: "expo_comer_expositores_2026", label: "EXPOCOMER EXPOSITORES 2026" },
+  { key: "expo_tech_expositores_2026", label: "EXPO TECH EXPOSITORES 2026" },
+  { key: "expo_electronica_expositores_2026", label: "EXPO ELECTRÓNICA EXPOSITORES 2026" },
 ] as const;
 
 const POINTS = [
