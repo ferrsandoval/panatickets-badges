@@ -1,15 +1,15 @@
 /**
  * Parsea CSV para qr_country_lookup.
  * Dos formatos:
- * - Expos normales: qr_content,pais (2 columnas).
- * - Expos EXPOSITORES: QR Content,Empresa,País (3 columnas).
+ * - Expos normales (invitados): qr_content,pais (2 columnas). Se mantiene igual.
+ * - Expos EXPOSITORES: QR Content,País,Empresa (3 columnas: col1=QR Content, col2=País, col3=Empresa).
  */
 
 export type CsvQrPaisRow = { qrContent: string; pais: string; empresa?: string | null };
 
 /**
  * Parsea una línea CSV.
- * hasEmpresa: si true, se esperan 3 columnas (qr_content, empresa, pais); si false, 2 (qr_content, pais).
+ * hasEmpresa: si true, formato EXPOSITORES con 3 columnas (QR Content, País, Empresa); si false, 2 columnas (qr_content, pais).
  */
 export function parseCsvLine(
   line: string,
@@ -20,12 +20,14 @@ export function parseCsvLine(
   const parts = trimmed.split(",");
   if (hasEmpresa) {
     if (parts.length < 3) return null;
-    const pais = parts.pop()?.trim().replace(/^["']|["']$/g, "") ?? "";
+    // Orden CSV expositores: col1=QR Content, col2=País, col3=Empresa
     const empresa = parts.pop()?.trim().replace(/^["']|["']$/g, "") ?? "";
+    const pais = parts.pop()?.trim().replace(/^["']|["']$/g, "") ?? "";
     const qrContent = parts.join(",").trim().replace(/^["']|["']$/g, "");
-    if (!qrContent || !pais) return null;
-    return { qrContent, empresa: empresa || null, pais };
+    if (!qrContent) return null;
+    return { qrContent, pais, empresa: empresa || null };
   }
+  // Formato invitados: qr_content,pais (2 columnas)
   if (parts.length < 2) return null;
   const pais = parts.pop()?.trim().replace(/^["']|["']$/g, "") ?? "";
   const qrContent = parts.join(",").trim().replace(/^["']|["']$/g, "");
@@ -34,7 +36,7 @@ export function parseCsvLine(
 }
 
 /**
- * Detecta si la cabecera indica formato 3 columnas (QR Content, Empresa, País).
+ * Detecta si la cabecera indica formato 3 columnas EXPOSITORES (QR Content, País, Empresa).
  */
 function detectEmpresaHeader(header: string): boolean {
   const h = header.toLowerCase();
@@ -43,7 +45,8 @@ function detectEmpresaHeader(header: string): boolean {
 
 /**
  * Parsea texto CSV completo.
- * Acepta cabecera qr_content,pais o qr_content,empresa,pais (o "QR Content,Empresa,País").
+ * Invitados: cabecera qr_content,pais (2 columnas).
+ * Expositores: cabecera QR Content,País,Empresa (3 columnas, en ese orden).
  */
 export function parseCsvText(text: string): CsvQrPaisRow[] {
   const lines = text.split(/\r?\n/).filter((l) => l.trim());
