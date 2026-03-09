@@ -20,6 +20,25 @@ type QrLookupRow = { qrContent: string; pais: string };
 
 type RowWithProject = QrLookupRow & { projectKey: string; projectLabel: string };
 
+/** Parsea qr_content para extraer nombre y empresa (líneas, CSV o texto). */
+function parseQrContentForTable(qrContent: string): { name: string; empresa: string } {
+  const t = qrContent.trim();
+  if (!t) return { name: "", empresa: "" };
+  const lines = t.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+  if (lines.length >= 2) {
+    return { name: lines[0].slice(0, 80), empresa: lines[1].slice(0, 80) };
+  }
+  if (lines.length === 1) {
+    const one = lines[0];
+    const byComma = one.split(",").map((s) => s.trim());
+    const bySemicolon = one.split(";").map((s) => s.trim());
+    if (byComma.length >= 2) return { name: byComma[0].slice(0, 80), empresa: byComma[1].slice(0, 80) };
+    if (bySemicolon.length >= 2) return { name: bySemicolon[0].slice(0, 80), empresa: bySemicolon[1].slice(0, 80) };
+    return { name: one.slice(0, 80), empresa: "" };
+  }
+  return { name: t.slice(0, 80), empresa: "" };
+}
+
 const LIMIT_PER_PROJECT = 3000;
 
 const tableStyles = {
@@ -114,21 +133,28 @@ function ImprimirExpositoresContent() {
     let list = allRows;
     if (filterBase) list = list.filter((r) => r.projectKey === filterBase);
     if (searchLower) {
-      list = list.filter(
-        (r) =>
+      list = list.filter((r) => {
+        const { name, empresa } = parseQrContentForTable(r.qrContent);
+        return (
           (r.qrContent ?? "").toLowerCase().includes(searchLower) ||
           (r.pais ?? "").toLowerCase().includes(searchLower) ||
-          (r.projectLabel ?? "").toLowerCase().includes(searchLower)
-      );
+          (r.projectLabel ?? "").toLowerCase().includes(searchLower) ||
+          (name ?? "").toLowerCase().includes(searchLower) ||
+          (empresa ?? "").toLowerCase().includes(searchLower)
+        );
+      });
     }
     return list;
   }, [allRows, filterBase, searchLower]);
 
   const openPrintLabel = (row: RowWithProject) => {
+    const { name, empresa } = parseQrContentForTable(row.qrContent);
     const labelUrl = new URL("/label/directo", window.location.origin);
     labelUrl.searchParams.set("project", row.projectKey);
     labelUrl.searchParams.set("qr_content", encodeURIComponent(row.qrContent));
     labelUrl.searchParams.set("pais", encodeURIComponent(row.pais));
+    if (name) labelUrl.searchParams.set("name", encodeURIComponent(name));
+    if (empresa) labelUrl.searchParams.set("empresa", encodeURIComponent(empresa));
     window.open(labelUrl.toString(), "_blank", "noopener,noreferrer,width=420,height=380");
   };
 
@@ -190,7 +216,7 @@ function ImprimirExpositoresContent() {
             <input
               id="search"
               type="search"
-              placeholder="QR content, país o base…"
+              placeholder="Nombre, empresa, país, QR content o base…"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{
@@ -246,85 +272,97 @@ function ImprimirExpositoresContent() {
         }}
       >
         <h2 style={{ margin: 0, padding: "1rem 1.25rem", fontSize: "1.05rem", borderBottom: "1px solid #334155", color: "#e2e8f0" }}>
-          QR Content (tabla para comparar) — por base de datos
+          QR Content — datos filtrados y con formato de impresión
         </h2>
         <p style={{ margin: 0, padding: "0.5rem 1.25rem", fontSize: "0.8rem", color: "#94a3b8", borderBottom: "1px solid #334155" }}>
-          Imprimir usa el mismo formato que la etiqueta de CodeREADr. Ctrl+P para imprimir.
+          Nombre y Empresa se obtienen del QR Content (por líneas o comas). País desde la tabla. Imprimir usa el mismo formato que CodeREADr. Ctrl+P para imprimir.
         </p>
         <div style={tableStyles.wrapper}>
           <table style={tableStyles.table}>
             <thead style={tableStyles.thead}>
               <tr>
-                <th style={{ ...tableStyles.th, minWidth: 180 }}>Base de datos</th>
-                <th style={{ ...tableStyles.th, minWidth: 280 }}>QR Content</th>
-                <th style={{ ...tableStyles.th, minWidth: 100 }}>País</th>
+                <th style={{ ...tableStyles.th, minWidth: 170 }}>Base de datos</th>
+                <th style={{ ...tableStyles.th, minWidth: 140 }}>Nombre</th>
+                <th style={{ ...tableStyles.th, minWidth: 140 }}>Empresa</th>
+                <th style={{ ...tableStyles.th, minWidth: 90 }}>País</th>
+                <th style={{ ...tableStyles.th, minWidth: 220 }}>QR Content</th>
                 <th style={{ ...tableStyles.th, textAlign: "right", minWidth: 100 }}>Acción</th>
               </tr>
             </thead>
             <tbody>
               {loading && allRows.length === 0 ? (
                 <tr>
-                  <td colSpan={4} style={{ padding: "2rem", color: "#64748b", textAlign: "center" }}>
+                  <td colSpan={6} style={{ padding: "2rem", color: "#64748b", textAlign: "center" }}>
                     Cargando QR content de todas las bases…
                   </td>
                 </tr>
               ) : filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={4} style={{ padding: "2rem", color: "#64748b" }}>
+                  <td colSpan={6} style={{ padding: "2rem", color: "#64748b" }}>
                     {allRows.length === 0 ? "No hay QR content en ninguna base. Sube CSV en Ver bases de datos." : "Ninguna fila coincide con el filtro o búsqueda."}
                   </td>
                 </tr>
               ) : (
-                filteredRows.map((row, idx) => (
-                  <tr
-                    key={`${row.projectKey}-${idx}-${row.qrContent.slice(0, 40)}`}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "rgba(30, 41, 59, 0.6)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "";
-                    }}
-                  >
-                    <td style={{ ...tableStyles.td, ...tableStyles.tdMuted, whiteSpace: "nowrap" }}>
-                      {row.projectLabel}
-                    </td>
-                    <td
-                      style={{
-                        ...tableStyles.td,
-                        fontFamily: "monospace",
-                        fontSize: "0.85rem",
-                        maxWidth: 360,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
+                filteredRows.map((row, idx) => {
+                  const { name, empresa } = parseQrContentForTable(row.qrContent);
+                  return (
+                    <tr
+                      key={`${row.projectKey}-${idx}-${row.qrContent.slice(0, 40)}`}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = "rgba(30, 41, 59, 0.6)";
                       }}
-                      title={row.qrContent}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "";
+                      }}
                     >
-                      {row.qrContent}
-                    </td>
-                    <td style={{ ...tableStyles.td, color: "#34d399", whiteSpace: "nowrap" }}>
-                      {row.pais}
-                    </td>
-                    <td style={{ ...tableStyles.td, textAlign: "right" }}>
-                      <button
-                        type="button"
-                        onClick={() => openPrintLabel(row)}
+                      <td style={{ ...tableStyles.td, ...tableStyles.tdMuted, whiteSpace: "nowrap" }}>
+                        {row.projectLabel}
+                      </td>
+                      <td style={{ ...tableStyles.td, fontWeight: 600, color: "#f1f5f9" }}>
+                        {name || "—"}
+                      </td>
+                      <td style={{ ...tableStyles.td, ...tableStyles.tdMuted }}>
+                        {empresa || "—"}
+                      </td>
+                      <td style={{ ...tableStyles.td, color: "#34d399", whiteSpace: "nowrap", fontWeight: 500 }}>
+                        {row.pais || "—"}
+                      </td>
+                      <td
                         style={{
-                          padding: "0.4rem 0.75rem",
-                          background: "#0ea5e9",
-                          color: "#fff",
-                          border: "none",
-                          borderRadius: 6,
-                          fontSize: "0.85rem",
-                          cursor: "pointer",
-                          fontWeight: 600,
+                          ...tableStyles.td,
+                          fontFamily: "monospace",
+                          fontSize: "0.8rem",
+                          color: "#94a3b8",
+                          maxWidth: 280,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
                         }}
+                        title={row.qrContent}
                       >
-                        Imprimir
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                        {row.qrContent}
+                      </td>
+                      <td style={{ ...tableStyles.td, textAlign: "right" }}>
+                        <button
+                          type="button"
+                          onClick={() => openPrintLabel(row)}
+                          style={{
+                            padding: "0.4rem 0.75rem",
+                            background: "#0ea5e9",
+                            color: "#fff",
+                            border: "none",
+                            borderRadius: 6,
+                            fontSize: "0.85rem",
+                            cursor: "pointer",
+                            fontWeight: 600,
+                          }}
+                        >
+                          Imprimir
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
