@@ -48,9 +48,10 @@ function getParsedFieldsFromQrContent(qrContent: string): {
 }
 
 /**
- * Campos a mostrar e imprimir según tipo de base.
- * - Expos normales: nombre, empresa, teléfono, email del parser del QR; país de la tabla.
- * - Expos EXPOSITORES: Empresa y País de la tabla (CSV 3 columnas); Nombre = QR Content o parser si hay.
+ * Campos a mostrar e imprimir en EXPOSITORES:
+ * - Nombre: desde la columna QR Content (qr_content).
+ * - Empresa: desde la columna Empresa (empresa).
+ * - País: desde la columna País (pais).
  */
 function getDisplayFields(row: RowWithProject): {
   name: string;
@@ -59,17 +60,17 @@ function getDisplayFields(row: RowWithProject): {
   telefono: string;
   email: string;
 } {
-  const parsed = getParsedFieldsFromQrContent(row.qrContent);
-  const pais = (row.pais ?? "").trim();
   if (isExpositoresProject(row.projectKey)) {
-    const empresa = (row.empresa ?? "").trim() || parsed.empresa;
-    const name = parsed.name || row.qrContent.trim().slice(0, 80);
-    return { name, empresa, pais, telefono: parsed.telefono, email: parsed.email };
+    const name = (row.qrContent ?? "").trim().slice(0, 80);
+    const empresa = (row.empresa ?? "").trim();
+    const pais = (row.pais ?? "").trim();
+    return { name, empresa, pais, telefono: "", email: "" };
   }
+  const parsed = getParsedFieldsFromQrContent(row.qrContent);
   return {
     name: parsed.name,
     empresa: parsed.empresa,
-    pais,
+    pais: (row.pais ?? "").trim(),
     telefono: parsed.telefono,
     email: parsed.email,
   };
@@ -230,7 +231,7 @@ function ImprimirExpositoresContent() {
       </section>
 
       <p style={{ margin: "0 0 1rem", color: "#94a3b8", fontSize: "0.9rem" }}>
-        Datos de la tabla <strong>QR Content</strong> cargados para comparar (por base de datos). De aquí se obtienen las bases y el contenido; la etiqueta se imprime con el mismo formato que cuando se lee con CodeREADr.
+        Datos de las 5 bases <strong>expositores</strong>. Nombre = columna QR Content; Empresa y País = columnas de la tabla (CSV de 3 columnas). La etiqueta se imprime con el mismo formato.
       </p>
 
       {error && (
@@ -341,7 +342,7 @@ function ImprimirExpositoresContent() {
           QR Content — datos filtrados y con formato de impresión
         </h2>
         <p style={{ margin: 0, padding: "0.5rem 1.25rem", fontSize: "0.8rem", color: "#94a3b8", borderBottom: "1px solid #334155" }}>
-          Bases <strong>EXPOSITORES</strong> (formato CSV QR Content, Empresa, País). Empresa y País desde la tabla; Nombre = QR Content o parser si hay. Busca por cualquier campo. Imprimir = mismo formato. Ctrl+P.
+          Bases <strong>EXPOSITORES</strong> (formato CSV: QR Content, Empresa, País). <strong>Nombre</strong> = columna QR Content; <strong>Empresa</strong> = columna Empresa; <strong>País</strong> = columna País. Busca por cualquier campo. Imprimir = mismo formato. Ctrl+P.
         </p>
         <div style={tableStyles.wrapper}>
           <table style={tableStyles.table}>
