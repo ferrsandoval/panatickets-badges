@@ -84,7 +84,10 @@ export async function POST(req: NextRequest) {
 
   try {
     const prisma = getPrismaForProject(project);
-    const qrContent = buildManualQrContent({ name, empresa });
+    const qrContent = buildManualQrContent(
+      { name, empresa },
+      project.includes("expositores") ? "expositores" : "invitados"
+    );
     await upsertQrLookupRows(prisma, [
       {
         qrContent,
