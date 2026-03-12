@@ -291,6 +291,21 @@ function PrintQueueContent() {
           >
             Informe de impresos
           </Link>
+          <Link
+            href="/estadisticas"
+            style={{
+              padding: "0.55rem 0.85rem",
+              borderRadius: 8,
+              border: "1px solid #0ea5e9",
+              color: "#e0f2fe",
+              backgroundColor: "rgba(14, 165, 233, 0.25)",
+              fontSize: "0.9rem",
+              textDecoration: "none",
+              fontWeight: 600,
+            }}
+          >
+            Estadísticas
+          </Link>
         </div>
       </section>
 
