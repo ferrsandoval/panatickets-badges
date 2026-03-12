@@ -5,8 +5,8 @@ const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 
 /**
  * GET /api/setup-scan-records?token=WEBHOOK_SECRET
- * Crea la tabla scan_records en la base de expo_tech_2026 (o SCAN_STATS_PROJECT).
- * Ejecutar una vez antes de subir el CSV de estadísticas.
+ * Crea la tabla scan_records (formato nuevo: Scan_ID, Fecha, Hora, Dia_Semana, Timestamp_Completo, EXPO, Tipo_Persona, Nombre, Empresa, Email, Telefono, Celular, Escaneo).
+ * Si existe con esquema antiguo, se elimina y se recrea.
  */
 export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get("token");
@@ -16,40 +16,36 @@ export async function GET(req: NextRequest) {
 
   try {
     const prisma = getPrismaForScanStats();
+    await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS "scan_records" CASCADE`);
     await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS "scan_records" (
+      CREATE TABLE "scan_records" (
         "id" TEXT NOT NULL,
-        "can_id" TEXT,
-        "fecha_escaneo" TEXT,
-        "hora_escaneo" TEXT,
+        "scan_id" TEXT,
+        "fecha" TEXT,
+        "hora" TEXT,
         "dia_semana" TEXT,
-        "mes" TEXT,
         "timestamp_completo" TEXT,
         "expo" TEXT,
-        "service_name" TEXT,
-        "persona_nombre" TEXT,
-        "persona_compania" TEXT,
-        "persona_email" TEXT,
-        "persona_telefono" TEXT,
-        "persona_celular" TEXT,
-        "escaneado_por_usuario" TEXT,
-        "escaneado_por_user_id" TEXT,
-        "dispositivo" TEXT,
-        "device_id" TEXT,
+        "tipo_persona" TEXT,
+        "nombre" TEXT,
+        "empresa" TEXT,
+        "email" TEXT,
+        "telefono" TEXT,
+        "celular" TEXT,
+        "escaneo" TEXT,
         "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         CONSTRAINT "scan_records_pkey" PRIMARY KEY ("id")
       );
     `);
-    await prisma.$executeRawUnsafe(`
-      CREATE INDEX IF NOT EXISTS "scan_records_expo_idx" ON "scan_records"("expo");
-    `);
-    await prisma.$executeRawUnsafe(`
-      CREATE INDEX IF NOT EXISTS "scan_records_persona_idx" ON "scan_records"("persona_nombre", "persona_compania", "persona_email");
-    `);
+    await prisma.$executeRawUnsafe(`CREATE INDEX "scan_records_expo_idx" ON "scan_records"("expo")`);
+    await prisma.$executeRawUnsafe(`CREATE INDEX "scan_records_tipo_persona_idx" ON "scan_records"("tipo_persona")`);
+    await prisma.$executeRawUnsafe(`CREATE INDEX "scan_records_persona_idx" ON "scan_records"("nombre", "empresa", "email")`);
+    await prisma.$executeRawUnsafe(`CREATE INDEX "scan_records_fecha_idx" ON "scan_records"("fecha")`);
+    await prisma.$executeRawUnsafe(`CREATE INDEX "scan_records_hora_idx" ON "scan_records"("hora")`);
 
     return NextResponse.json({
       ok: true,
-      message: "Tabla scan_records creada (en la base de expo_tech_2026 o SCAN_STATS_PROJECT).",
+      message: "Tabla scan_records creada (esquema nuevo).",
     });
   } catch (e) {
     console.error("setup-scan-records error", e);

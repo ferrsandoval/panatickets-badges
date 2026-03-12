@@ -63,23 +63,19 @@ export async function POST(req: NextRequest) {
     await prisma.scanRecord.deleteMany({});
 
     const records = rows.map((row) => ({
-      canId: getValue(row, "can_ID") || null,
-      fechaEscaneo: getValue(row, "Fecha_Escaneo") || null,
-      horaEscaneo: getValue(row, "Hora_Escaneo") || null,
+      scanId: getValue(row, "Scan_ID") || getValue(row, "can_ID") || null,
+      fecha: getValue(row, "Fecha") || getValue(row, "Fecha_Escaneo") || null,
+      hora: getValue(row, "Hora") || getValue(row, "Hora_Escaneo") || null,
       diaSemana: getValue(row, "Dia_Semana") || null,
-      mes: getValue(row, "Mes") || null,
       timestampCompleto: getValue(row, "Timestamp_Completo") || null,
-      expo: getValue(row, "Expo") || null,
-      serviceName: getValue(row, "Service_Name") || null,
-      personaNombre: getValue(row, "Persona_Escaneada_Nombre") || null,
-      personaCompania: getValue(row, "Persona_Escaneada_Compania") || null,
-      personaEmail: getValue(row, "Persona_Escaneada_Email") || null,
-      personaTelefono: getValue(row, "Persona_Escaneada_Telefono") || null,
-      personaCelular: getValue(row, "Persona_Escaneada_Celular") || null,
-      escaneadoPorUsuario: getValue(row, "Escaneado_Por_Usuario") || null,
-      escaneadoPorUserId: getValue(row, "Escaneado_Por_User_ID") || null,
-      dispositivo: getValue(row, "Dispositivo") || null,
-      deviceId: getValue(row, "Device_ID") || null,
+      expo: getValue(row, "EXPO") || getValue(row, "Expo") || null,
+      tipoPersona: getValue(row, "Tipo_Persona") || null,
+      nombre: getValue(row, "Nombre") || getValue(row, "Persona_Escaneada_Nombre") || null,
+      empresa: getValue(row, "Empresa") || getValue(row, "Persona_Escaneada_Compania") || null,
+      email: getValue(row, "Email") || getValue(row, "Persona_Escaneada_Email") || null,
+      telefono: getValue(row, "Telefono") || getValue(row, "Persona_Escaneada_Telefono") || null,
+      celular: getValue(row, "Celular") || getValue(row, "Persona_Escaneada_Celular") || null,
+      escaneo: getValue(row, "Escaneo") || null,
     }));
 
     await prisma.scanRecord.createMany({

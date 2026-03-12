@@ -32,11 +32,11 @@ export async function GET() {
     const scanPrisma = getPrismaForScanStats();
     const scans = await scanPrisma.scanRecord.findMany({
       select: {
-        canId: true,
+        scanId: true,
         expo: true,
-        personaNombre: true,
-        personaCompania: true,
-        personaEmail: true,
+        nombre: true,
+        empresa: true,
+        email: true,
       },
     });
 
@@ -85,11 +85,11 @@ export async function GET() {
 
         for (const scan of scansForThisExpo) {
           const matchByScanId =
-            scan.canId && printJobByScanId.has(scan.canId);
+            scan.scanId && printJobByScanId.has(scan.scanId);
           const matchKey = createMatchKey(
-            scan.personaNombre,
-            scan.personaCompania,
-            scan.personaEmail
+            scan.nombre,
+            scan.empresa,
+            scan.email
           );
           const matchByFields =
             matchKey !== "||" && printJobKeys.has(matchKey);

@@ -75,9 +75,9 @@ DATABASE_URL_EXPO_ELECTRONICA_EXPOSITORES_2026_DATABASE_URL=postgres://...
    - https://**TU_APP**.vercel.app/api/setup-db?token=**TU_TOKEN**&project=expo_electronica_expositores_2026  
    Debes ver algo como: `{"ok":true,"message":"Tablas print_jobs y qr_country_lookup creadas/actualizadas..."}`
 
-3. **Tabla scan_records (estadísticas)**  
-   `scan_records` se guarda en la base de **expo_tech_2026** (la más pequeña). Para usar otra expo, añade `SCAN_STATS_PROJECT=expo_logistica_2026` (o la key que prefieras).  
-   Crear la tabla una vez: `https://TU_APP.vercel.app/api/setup-scan-records?token=TU_TOKEN`
+3. **Tabla scan_records (estadísticas BI)**  
+   Formato CSV: Scan_ID, Fecha, Hora, Dia_Semana, Timestamp_Completo, EXPO, Tipo_Persona, Nombre, Empresa, Email, Telefono, Celular, Escaneo.  
+   Crear tabla: `https://TU_APP.vercel.app/api/setup-scan-records?token=TU_TOKEN` (usa base expo_tech_2026).
 
 4. **Cargar QR → país (lookup)**  
    Opción A: En la app, ve a **Ver bases de datos** → elige una expo → en "Subir CSV" introduce tu token y sube un CSV.  

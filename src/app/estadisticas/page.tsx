@@ -19,32 +19,35 @@ import {
   Line,
 } from "recharts";
 
-type ScanRow = {
-  can_ID?: string;
-  Fecha_Escaneo?: string;
-  Hora_Escaneo?: string;
-  Dia_Semana?: string;
-  Mes?: string;
-  Timestamp_Completo?: string;
-  Expo?: string;
-  Service_Name?: string;
-  Persona_Escaneada_Nombre?: string;
-  Persona_Escaneada_Compania?: string;
-  Persona_Escaneada_Email?: string;
-  Persona_Escaneada_Telefono?: string;
-  Persona_Escaneada_Celular?: string;
-  Escaneado_Por_Usuario?: string;
-  Escaneado_Por_User_ID?: string;
-  Dispositivo?: string;
-  Device_ID?: string;
-  [key: string]: string | undefined;
-};
+type ScanRow = Record<string, string | null | undefined>;
 
-const CHART_COLORS = ["#0ea5e9", "#38bdf8", "#22d3ee", "#06b6d4", "#0891b2"];
+const CSV_COLS = "Scan_ID, Fecha, Hora, Dia_Semana, Timestamp_Completo, EXPO, Tipo_Persona, Nombre, Empresa, Email, Telefono, Celular, Escaneo";
 
-function getValue(row: ScanRow, key: string): string {
-  const k = Object.keys(row).find((h) => h.trim().toLowerCase() === key.toLowerCase());
-  return (k ? row[k] : row[key] ?? "").trim() || "";
+const CHART_COLORS = ["#0ea5e9", "#38bdf8", "#22d3ee", "#06b6d4", "#0891b2", "#14b8a6", "#2dd4bf"];
+
+function getVal(row: ScanRow, ...keys: string[]): string {
+  for (const key of keys) {
+    const k = Object.keys(row).find((h) => h?.trim().toLowerCase() === key.toLowerCase());
+    const v = k ? row[k] : row[key];
+    if (v != null && String(v).trim()) return String(v).trim();
+  }
+  return "";
+}
+
+function parseFechaToMes(fecha: string): string {
+  if (!fecha) return "";
+  const m = fecha.match(/(\d{4})-(\d{2})|\d{2}\/\d{2}\/(\d{4})|(\d{2})\/(\d{2})/);
+  if (!m) return fecha.slice(0, 7) || fecha;
+  const months = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+  const y = m[1] || m[3] || new Date().getFullYear();
+  const mo = parseInt(m[2] || m[4] || m[5] || "1", 10);
+  return `${months[mo - 1] || mo} ${String(y).slice(-2)}`;
+}
+
+function parseHoraToHour(hora: string): string {
+  if (!hora) return "";
+  const parts = hora.split(/[:\s]/);
+  return parts[0] ? `${parts[0]}h` : hora;
 }
 
 export default function EstadisticasPage() {
@@ -64,21 +67,77 @@ type CrossStatsRow = {
 
 function EstadisticasContent() {
   const [data, setData] = useState<ScanRow[]>([]);
+  const [dataSource, setDataSource] = useState<"db" | "csv" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [uploadToken, setUploadToken] = useState("");
   const [uploadLoading, setUploadLoading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [crossStats, setCrossStats] = useState<{ totalScans: number; byExpo: CrossStatsRow[] } | null>(null);
-  const [crossLoading, setCrossLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const fetchFromDb = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/scan-stats-data");
+      if (!res.ok) return [];
+      const json = await res.json();
+      return Array.isArray(json)
+        ? json.map((r: Record<string, unknown>) => ({
+            Scan_ID: String(r.scanId ?? ""),
+            Fecha: String(r.fecha ?? ""),
+            Hora: String(r.hora ?? ""),
+            Dia_Semana: String(r.diaSemana ?? ""),
+            Timestamp_Completo: String(r.timestampCompleto ?? ""),
+            EXPO: String(r.expo ?? ""),
+            Tipo_Persona: String(r.tipoPersona ?? ""),
+            Nombre: String(r.nombre ?? ""),
+            Empresa: String(r.empresa ?? ""),
+            Email: String(r.email ?? ""),
+            Telefono: String(r.telefono ?? ""),
+            Celular: String(r.celular ?? ""),
+            Escaneo: String(r.escaneo ?? ""),
+          }))
+        : [];
+    } catch {
+      return [];
+    }
+  }, []);
+
+  const fetchCrossStats = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/scan-stats-cross");
+      if (!res.ok) throw new Error(res.statusText);
+      return await res.json();
+    } catch {
+      return null;
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    Promise.all([fetchFromDb(), fetchCrossStats()]).then(([dbData, cross]) => {
+      if (cancelled) return;
+      if (dbData.length > 0) {
+        setData(dbData);
+        setDataSource("db");
+      } else {
+        setData([]);
+        setDataSource(null);
+      }
+      setCrossStats(cross);
+      setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [fetchFromDb, fetchCrossStats]);
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     setError(null);
-    setData([]);
-    setFileName(null);
     if (!file) return;
     if (!file.name.toLowerCase().endsWith(".csv")) {
       setError("Selecciona un archivo CSV.");
@@ -93,12 +152,13 @@ function EstadisticasContent() {
           setError(results.errors[0]?.message ?? "Error al parsear el CSV.");
           return;
         }
-        const rows = results.data as ScanRow[];
+        const rows = (results.data ?? []) as ScanRow[];
         if (rows.length === 0) {
-          setError("El CSV está vacío o no tiene filas de datos.");
+          setError("El CSV está vacío.");
           return;
         }
         setData(rows);
+        setDataSource("csv");
       },
     });
   }, []);
@@ -106,78 +166,95 @@ function EstadisticasContent() {
   const stats = useMemo(() => {
     if (data.length === 0) return null;
     const byExpo: Record<string, number> = {};
-    const byService: Record<string, number> = {};
+    const byTipoPersona: Record<string, number> = {};
     const byDia: Record<string, number> = {};
     const byMes: Record<string, number> = {};
-    const byUsuario: Record<string, number> = {};
-    const byDispositivo: Record<string, number> = {};
+    const byHora: Record<string, number> = {};
+    const byFecha: Record<string, number> = {};
+    const byEscaneo: Record<string, number> = {};
 
     for (const row of data) {
-      const expo = getValue(row, "Expo") || "Sin expo";
-      const service = getValue(row, "Service_Name") || "Sin servicio";
-      const dia = getValue(row, "Dia_Semana") || "Sin día";
-      const mes = getValue(row, "Mes") || "Sin mes";
-      const usuario = getValue(row, "Escaneado_Por_Usuario") || "Sin usuario";
-      const dispositivo = getValue(row, "Dispositivo") || "Sin dispositivo";
+      const expo = getVal(row, "EXPO", "Expo") || "Sin expo";
+      const tipo = getVal(row, "Tipo_Persona") || "Sin tipo";
+      const dia = getVal(row, "Dia_Semana") || "Sin día";
+      const fecha = getVal(row, "Fecha", "Fecha_Escaneo");
+      const hora = getVal(row, "Hora", "Hora_Escaneo");
+      const escaneo = getVal(row, "Escaneo") || "Sin dato";
 
       byExpo[expo] = (byExpo[expo] ?? 0) + 1;
-      byService[service] = (byService[service] ?? 0) + 1;
+      byTipoPersona[tipo] = (byTipoPersona[tipo] ?? 0) + 1;
       byDia[dia] = (byDia[dia] ?? 0) + 1;
-      byMes[mes] = (byMes[mes] ?? 0) + 1;
-      byUsuario[usuario] = (byUsuario[usuario] ?? 0) + 1;
-      byDispositivo[dispositivo] = (byDispositivo[dispositivo] ?? 0) + 1;
+      byEscaneo[escaneo] = (byEscaneo[escaneo] ?? 0) + 1;
+      if (fecha) {
+        const mes = parseFechaToMes(fecha);
+        byMes[mes] = (byMes[mes] ?? 0) + 1;
+        byFecha[fecha] = (byFecha[fecha] ?? 0) + 1;
+      }
+      if (hora) {
+        const h = parseHoraToHour(hora);
+        byHora[h] = (byHora[h] ?? 0) + 1;
+      }
     }
 
-    const toChartData = (obj: Record<string, number>) =>
+    const toChart = (obj: Record<string, number>) =>
       Object.entries(obj)
-        .map(([name, value]) => ({ name, value, count: value }))
+        .map(([name, value]) => ({ name, value }))
         .sort((a, b) => b.value - a.value);
+
+    const ordenDias = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
+    const byDiaOrd = Object.entries(byDia)
+      .sort((a, b) => {
+        const ai = ordenDias.findIndex((d) => d.toLowerCase().includes(a[0].toLowerCase()));
+        const bi = ordenDias.findIndex((d) => d.toLowerCase().includes(b[0].toLowerCase()));
+        if (ai >= 0 && bi >= 0) return ai - bi;
+        return b[1] - a[1];
+      })
+      .map(([name, value]) => ({ name, value }));
+
+    const byHoraOrd = Object.entries(byHora)
+      .sort((a, b) => parseInt(a[0], 10) - parseInt(b[0], 10))
+      .map(([name, value]) => ({ name, value }));
+
+    const byFechaOrd = Object.entries(byFecha)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([name, value]) => ({ name, value }));
 
     return {
       total: data.length,
-      byExpo: toChartData(byExpo),
-      byService: toChartData(byService),
-      byDia: toChartData(byDia),
-      byMes: toChartData(byMes),
-      byUsuario: toChartData(byUsuario).slice(0, 10),
-      byDispositivo: toChartData(byDispositivo),
+      byExpo: toChart(byExpo),
+      byTipoPersona: toChart(byTipoPersona),
+      byDia: byDiaOrd.length > 0 ? byDiaOrd : toChart(byDia),
+      byMes: toChart(byMes),
+      byHora: byHoraOrd.length > 0 ? byHoraOrd : toChart(byHora),
+      byFecha: byFechaOrd,
+      byEscaneo: toChart(byEscaneo),
     };
   }, [data]);
 
-  const clearData = () => {
+  const clearLocal = () => {
     setData([]);
     setFileName(null);
     setError(null);
+    setDataSource(null);
     setUploadSuccess(null);
     setUploadError(null);
     setCrossStats(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
+    fetchFromDb().then((dbData) => {
+      if (dbData.length > 0) {
+        setData(dbData);
+        setDataSource("db");
+      }
+      fetchCrossStats().then(setCrossStats);
+    });
   };
-
-  const fetchCrossStats = useCallback(async () => {
-    setCrossLoading(true);
-    try {
-      const res = await fetch("/api/admin/scan-stats-cross");
-      if (!res.ok) throw new Error(res.statusText);
-      const json = await res.json();
-      setCrossStats(json);
-    } catch {
-      setCrossStats(null);
-    } finally {
-      setCrossLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchCrossStats();
-  }, [fetchCrossStats]);
 
   const handleSaveToDb = async (e: React.FormEvent) => {
     e.preventDefault();
     setUploadError(null);
     setUploadSuccess(null);
     if (!uploadToken.trim()) {
-      setUploadError("Introduce el token de administrador (WEBHOOK_SECRET).");
+      setUploadError("Introduce el token (WEBHOOK_SECRET).");
       return;
     }
     if (data.length === 0) {
@@ -188,19 +265,55 @@ function EstadisticasContent() {
     try {
       const csv = Papa.unparse(data);
       const formData = new FormData();
-      formData.append("file", new Blob([csv], { type: "text/csv" }), "estadisticas.csv");
+      formData.append("file", new Blob(["\uFEFF" + csv], { type: "text/csv" }), "estadisticas.csv");
       const url = new URL("/api/admin/upload-scan-stats-csv", window.location.origin);
       url.searchParams.set("token", uploadToken.trim());
       const res = await fetch(url.toString(), { method: "POST", body: formData });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.detail ?? json.error ?? res.statusText);
       setUploadSuccess(json.message ?? `Guardados ${json.total ?? data.length} registros.`);
-      fetchCrossStats();
+      setDataSource("db");
+      fetchCrossStats().then(setCrossStats);
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Error al guardar");
     } finally {
       setUploadLoading(false);
     }
+  };
+
+  const handleDeleteDb = async () => {
+    if (!uploadToken.trim()) {
+      setDeleteError("Introduce el token.");
+      return;
+    }
+    if (!confirm("¿Eliminar todos los registros de la base de datos? Esta acción no se puede deshacer.")) return;
+    setDeleteLoading(true);
+    setDeleteError(null);
+    try {
+      const url = new URL("/api/admin/clear-scan-records", window.location.origin);
+      url.searchParams.set("token", uploadToken.trim());
+      const res = await fetch(url.toString(), { method: "DELETE" });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.detail ?? json.error ?? res.statusText);
+      setData([]);
+      setDataSource(null);
+      setCrossStats(null);
+      setUploadSuccess(`Base eliminada. ${json.count ?? 0} registros borrados.`);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "Error al eliminar");
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const refreshFromDb = () => {
+    setLoading(true);
+    fetchFromDb().then((dbData) => {
+      setData(dbData);
+      setDataSource(dbData.length > 0 ? "db" : null);
+      setLoading(false);
+    });
+    fetchCrossStats().then(setCrossStats);
   };
 
   return (
@@ -216,15 +329,12 @@ function EstadisticasContent() {
           padding: "1rem 1.25rem",
           border: "1px solid #334155",
           borderRadius: 16,
-          background:
-            "linear-gradient(135deg, rgba(2,6,23,0.96) 0%, rgba(15,23,42,0.96) 60%, rgba(8,47,73,0.96) 100%)",
+          background: "linear-gradient(135deg, rgba(2,6,23,0.96) 0%, rgba(15,23,42,0.96) 60%, rgba(8,47,73,0.96) 100%)",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-          <Link href="/" style={{ color: "#38bdf8", textDecoration: "none", fontSize: "0.9rem" }}>
-            ← Cola de impresión
-          </Link>
-          <h1 style={{ margin: 0, fontSize: "1.5rem" }}>Dashboard de estadísticas</h1>
+          <Link href="/" style={{ color: "#38bdf8", textDecoration: "none", fontSize: "0.9rem" }}>← Cola de impresión</Link>
+          <h1 style={{ margin: 0, fontSize: "1.5rem" }}>Dashboard BI — Estadísticas</h1>
         </div>
       </section>
 
@@ -237,489 +347,229 @@ function EstadisticasContent() {
           background: "#0f172a",
         }}
       >
-        <h2 style={{ margin: "0 0 0.75rem", fontSize: "1.15rem" }}>Cargar CSV de datos escaneados</h2>
+        <h2 style={{ margin: "0 0 0.75rem", fontSize: "1.15rem" }}>Datos</h2>
         <p style={{ margin: "0 0 1rem", fontSize: "0.85rem", color: "#94a3b8" }}>
-          Formato: can_ID, Fecha_Escaneo, Hora_Escaneo, Dia_Semana, Mes, Timestamp_Completo, Expo,
-          Service_Name, Persona_Escaneada_Nombre, Persona_Escaneada_Compania, Persona_Escaneada_Email,
-          Persona_Escaneada_Telefono, Persona_Escaneada_Celular, Escaneado_Por_Usuario, Escaneado_Por_User_ID,
-          Dispositivo, Device_ID.           Para guardar en DB y ver cruces: ejecuta{" "}
-          <code style={{ fontSize: "0.8em" }}>/api/setup-scan-records?token=WEBHOOK_SECRET</code>{" "}
-          una vez (crea scan_records en la base de expo_tech_2026).
+          Formato CSV: {CSV_COLS}
         </p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", alignItems: "center" }}>
           <input
             ref={fileInputRef}
-            id="csv-estadisticas"
             type="file"
             accept=".csv"
             onChange={handleFileChange}
-            style={{
-              padding: "0.5rem",
-              background: "#1e293b",
-              border: "1px solid #475569",
-              borderRadius: 8,
-              color: "#e2e8f0",
-              fontSize: "0.9rem",
-            }}
+            style={{ padding: "0.5rem", background: "#1e293b", border: "1px solid #475569", borderRadius: 8, color: "#e2e8f0", fontSize: "0.9rem" }}
           />
           {data.length > 0 && (
             <>
               <span style={{ color: "#34d399", fontSize: "0.9rem" }}>
-                {fileName} — {data.length} registros
+                {dataSource === "db" ? "Base de datos" : fileName} — {data.length.toLocaleString()} registros
               </span>
+              {dataSource === "db" && (
+                <button type="button" onClick={refreshFromDb} disabled={loading} style={{ padding: "0.4rem 0.85rem", background: "#1e293b", color: "#e2e8f0", border: "1px solid #475569", borderRadius: 6, fontSize: "0.85rem", cursor: loading ? "not-allowed" : "pointer" }}>
+                  Actualizar
+                </button>
+              )}
               <form onSubmit={handleSaveToDb} style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", alignItems: "center" }}>
                 <input
                   type="password"
                   value={uploadToken}
                   onChange={(e) => setUploadToken(e.target.value)}
-                  placeholder="Token (WEBHOOK_SECRET)"
-                  style={{
-                    padding: "0.4rem 0.6rem",
-                    background: "#1e293b",
-                    border: "1px solid #475569",
-                    borderRadius: 6,
-                    color: "#e2e8f0",
-                    fontSize: "0.85rem",
-                    width: 180,
-                  }}
+                  placeholder="Token"
+                  style={{ padding: "0.4rem 0.6rem", background: "#1e293b", border: "1px solid #475569", borderRadius: 6, color: "#e2e8f0", fontSize: "0.85rem", width: 160 }}
                 />
-                <button
-                  type="submit"
-                  disabled={uploadLoading}
-                  style={{
-                    padding: "0.4rem 0.85rem",
-                    background: uploadLoading ? "#475569" : "#0ea5e9",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: 6,
-                    fontSize: "0.85rem",
-                    cursor: uploadLoading ? "not-allowed" : "pointer",
-                  }}
-                >
-                  {uploadLoading ? "Guardando…" : "Guardar en base de datos"}
+                <button type="submit" disabled={uploadLoading} style={{ padding: "0.4rem 0.85rem", background: uploadLoading ? "#475569" : "#0ea5e9", color: "#fff", border: "none", borderRadius: 6, fontSize: "0.85rem", cursor: uploadLoading ? "not-allowed" : "pointer" }}>
+                  {uploadLoading ? "Guardando…" : "Guardar en DB"}
                 </button>
               </form>
-              <button
-                type="button"
-                onClick={clearData}
-                style={{
-                  padding: "0.4rem 0.85rem",
-                  background: "#475569",
-                  color: "#e2e8f0",
-                  border: "none",
-                  borderRadius: 6,
-                  fontSize: "0.85rem",
-                  cursor: "pointer",
-                }}
-              >
-                Limpiar
+              <button type="button" onClick={handleDeleteDb} disabled={deleteLoading} style={{ padding: "0.4rem 0.85rem", background: deleteLoading ? "#475569" : "#b91c1c", color: "#fff", border: "none", borderRadius: 6, fontSize: "0.85rem", cursor: deleteLoading ? "not-allowed" : "pointer" }}>
+                {deleteLoading ? "Eliminando…" : "Eliminar base"}
               </button>
+              {dataSource === "csv" && (
+                <button type="button" onClick={clearLocal} style={{ padding: "0.4rem 0.85rem", background: "#475569", color: "#e2e8f0", border: "none", borderRadius: 6, fontSize: "0.85rem", cursor: "pointer" }}>
+                  Limpiar vista
+                </button>
+              )}
             </>
           )}
         </div>
-        {error && (
-          <p style={{ margin: "0.75rem 0 0", color: "#f87171", fontSize: "0.9rem" }}>{error}</p>
-        )}
-        {uploadError && (
-          <p style={{ margin: "0.75rem 0 0", color: "#f87171", fontSize: "0.9rem" }}>{uploadError}</p>
-        )}
-        {uploadSuccess && (
-          <p style={{ margin: "0.75rem 0 0", color: "#34d399", fontSize: "0.9rem" }}>{uploadSuccess}</p>
-        )}
+        {error && <p style={{ margin: "0.75rem 0 0", color: "#f87171", fontSize: "0.9rem" }}>{error}</p>}
+        {uploadError && <p style={{ margin: "0.75rem 0 0", color: "#f87171", fontSize: "0.9rem" }}>{uploadError}</p>}
+        {deleteError && <p style={{ margin: "0.75rem 0 0", color: "#f87171", fontSize: "0.9rem" }}>{deleteError}</p>}
+        {uploadSuccess && <p style={{ margin: "0.75rem 0 0", color: "#34d399", fontSize: "0.9rem" }}>{uploadSuccess}</p>}
       </section>
 
       {crossStats && crossStats.totalScans > 0 && (
-        <section
-          style={{
-            marginBottom: "1.5rem",
-            padding: "1.25rem",
-            border: "1px solid #334155",
-            borderRadius: 12,
-            background: "#0f172a",
-          }}
-        >
-          <h2 style={{ margin: "0 0 0.75rem", fontSize: "1.15rem" }}>
-            Cruce con impresos por expo
-          </h2>
-          <p style={{ margin: "0 0 1rem", fontSize: "0.85rem", color: "#94a3b8" }}>
-            Escaneos del CSV que coinciden con credenciales impresas en cada base de datos de expo.
-          </p>
-          {crossLoading ? (
-            <p style={{ color: "#94a3b8" }}>Cargando cruces…</p>
-          ) : (
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9rem" }}>
-                <thead>
-                  <tr style={{ borderBottom: "2px solid #334155" }}>
-                    <th style={{ textAlign: "left", padding: "0.75rem", color: "#94a3b8" }}>Expo</th>
-                    <th style={{ textAlign: "right", padding: "0.75rem", color: "#94a3b8" }}>Escaneos en CSV</th>
-                    <th style={{ textAlign: "right", padding: "0.75rem", color: "#94a3b8" }}>Coinciden con impresos</th>
+        <section style={{ marginBottom: "1.5rem", padding: "1.25rem", border: "1px solid #334155", borderRadius: 12, background: "#0f172a" }}>
+          <h2 style={{ margin: "0 0 0.75rem", fontSize: "1.15rem" }}>Cruce con impresos por expo</h2>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9rem" }}>
+              <thead>
+                <tr style={{ borderBottom: "2px solid #334155" }}>
+                  <th style={{ textAlign: "left", padding: "0.75rem", color: "#94a3b8" }}>Expo</th>
+                  <th style={{ textAlign: "right", padding: "0.75rem", color: "#94a3b8" }}>Escaneos</th>
+                  <th style={{ textAlign: "right", padding: "0.75rem", color: "#94a3b8" }}>Coinciden impresos</th>
+                </tr>
+              </thead>
+              <tbody>
+                {crossStats.byExpo.map((r) => (
+                  <tr key={r.projectKey} style={{ borderBottom: "1px solid #1e293b" }}>
+                    <td style={{ padding: "0.75rem", color: "#e2e8f0" }}>{r.projectLabel}</td>
+                    <td style={{ padding: "0.75rem", textAlign: "right", color: "#94a3b8" }}>{r.scansInCsv.toLocaleString()}</td>
+                    <td style={{ padding: "0.75rem", textAlign: "right", color: "#34d399", fontWeight: 600 }}>{r.matchedInPrintJob.toLocaleString()}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {crossStats.byExpo.map((r) => (
-                      <tr key={r.projectKey} style={{ borderBottom: "1px solid #1e293b" }}>
-                        <td style={{ padding: "0.75rem", color: "#e2e8f0" }}>{r.projectLabel}</td>
-                        <td style={{ padding: "0.75rem", textAlign: "right", color: "#94a3b8" }}>
-                          {r.scansInCsv.toLocaleString()}
-                        </td>
-                        <td style={{ padding: "0.75rem", textAlign: "right", color: "#34d399", fontWeight: 600 }}>
-                          {r.matchedInPrintJob.toLocaleString()}
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          <button
-            type="button"
-            onClick={fetchCrossStats}
-            disabled={crossLoading}
-            style={{
-              marginTop: "0.75rem",
-              padding: "0.4rem 0.75rem",
-              background: "#1e293b",
-              color: "#e2e8f0",
-              border: "1px solid #475569",
-              borderRadius: 6,
-              fontSize: "0.85rem",
-              cursor: crossLoading ? "not-allowed" : "pointer",
-            }}
-          >
-            Actualizar cruces
-          </button>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
       )}
 
-      {!stats ? (
-        <section
-          style={{
-            padding: "3rem 2rem",
-            textAlign: "center",
-            border: "1px dashed #334155",
-            borderRadius: 12,
-            background: "#0f172a",
-            color: "#64748b",
-          }}
-        >
-          <p style={{ margin: 0, fontSize: "1rem" }}>
-            Carga un CSV con el resumen de datos escaneados para ver el dashboard.
-          </p>
+      {loading ? (
+        <p style={{ color: "#94a3b8" }}>Cargando datos…</p>
+      ) : !stats ? (
+        <section style={{ padding: "3rem 2rem", textAlign: "center", border: "1px dashed #334155", borderRadius: 12, background: "#0f172a", color: "#64748b" }}>
+          <p style={{ margin: 0 }}>Carga un CSV o guarda datos en la base para ver el análisis BI.</p>
         </section>
       ) : (
         <>
-          <section
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-              gap: "1rem",
-              marginBottom: "1.5rem",
-            }}
-          >
-            <div
-              style={{
-                padding: "1.25rem",
-                background: "#0f172a",
-                border: "1px solid #334155",
-                borderRadius: 12,
-              }}
-            >
-              <p style={{ margin: 0, fontSize: "0.8rem", color: "#94a3b8", textTransform: "uppercase" }}>
-                Total escaneos
-              </p>
-              <p style={{ margin: "0.5rem 0 0", fontSize: "1.75rem", fontWeight: 700, color: "#38bdf8" }}>
-                {stats.total.toLocaleString()}
-              </p>
+          <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
+            <div style={{ padding: "1rem", background: "#0f172a", border: "1px solid #334155", borderRadius: 12 }}>
+              <p style={{ margin: 0, fontSize: "0.75rem", color: "#94a3b8", textTransform: "uppercase" }}>Total</p>
+              <p style={{ margin: "0.35rem 0 0", fontSize: "1.5rem", fontWeight: 700, color: "#38bdf8" }}>{stats.total.toLocaleString()}</p>
             </div>
-            <div
-              style={{
-                padding: "1.25rem",
-                background: "#0f172a",
-                border: "1px solid #334155",
-                borderRadius: 12,
-              }}
-            >
-              <p style={{ margin: 0, fontSize: "0.8rem", color: "#94a3b8", textTransform: "uppercase" }}>
-                Expos
-              </p>
-              <p style={{ margin: "0.5rem 0 0", fontSize: "1.75rem", fontWeight: 700, color: "#22d3ee" }}>
-                {stats.byExpo.length}
-              </p>
+            <div style={{ padding: "1rem", background: "#0f172a", border: "1px solid #334155", borderRadius: 12 }}>
+              <p style={{ margin: 0, fontSize: "0.75rem", color: "#94a3b8", textTransform: "uppercase" }}>Expos</p>
+              <p style={{ margin: "0.35rem 0 0", fontSize: "1.5rem", fontWeight: 700, color: "#22d3ee" }}>{stats.byExpo.length}</p>
             </div>
-            <div
-              style={{
-                padding: "1.25rem",
-                background: "#0f172a",
-                border: "1px solid #334155",
-                borderRadius: 12,
-              }}
-            >
-              <p style={{ margin: 0, fontSize: "0.8rem", color: "#94a3b8", textTransform: "uppercase" }}>
-                Servicios
-              </p>
-              <p style={{ margin: "0.5rem 0 0", fontSize: "1.75rem", fontWeight: 700, color: "#06b6d4" }}>
-                {stats.byService.length}
-              </p>
+            <div style={{ padding: "1rem", background: "#0f172a", border: "1px solid #334155", borderRadius: 12 }}>
+              <p style={{ margin: 0, fontSize: "0.75rem", color: "#94a3b8", textTransform: "uppercase" }}>Tipos persona</p>
+              <p style={{ margin: "0.35rem 0 0", fontSize: "1.5rem", fontWeight: 700, color: "#06b6d4" }}>{stats.byTipoPersona.length}</p>
             </div>
+            {crossStats && crossStats.totalScans > 0 && (
+              <div style={{ padding: "1rem", background: "#0f172a", border: "1px solid #334155", borderRadius: 12 }}>
+                <p style={{ margin: 0, fontSize: "0.75rem", color: "#94a3b8", textTransform: "uppercase" }}>Tasa impresos</p>
+                <p style={{ margin: "0.35rem 0 0", fontSize: "1.5rem", fontWeight: 700, color: "#34d399" }}>
+                  {((crossStats.byExpo.reduce((s, r) => s + r.matchedInPrintJob, 0) / stats.total) * 100).toFixed(1)}%
+                </p>
+              </div>
+            )}
           </section>
 
-          <section
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))",
-              gap: "1.5rem",
-              marginBottom: "1.5rem",
-            }}
-          >
-            <div
-              style={{
-                padding: "1rem",
-                background: "#0f172a",
-                border: "1px solid #334155",
-                borderRadius: 12,
-                minHeight: 320,
-              }}
-            >
-              <h3 style={{ margin: "0 0 1rem", fontSize: "1rem" }}>Escaneos por Expo</h3>
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={stats.byExpo} layout="vertical" margin={{ left: 20 }}>
+          <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: "1.5rem", marginBottom: "1.5rem" }}>
+            <div style={{ padding: "1rem", background: "#0f172a", border: "1px solid #334155", borderRadius: 12, minHeight: 300 }}>
+              <h3 style={{ margin: "0 0 0.75rem", fontSize: "0.95rem" }}>Por Expo</h3>
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={stats.byExpo.slice(0, 10)} layout="vertical" margin={{ left: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                  <XAxis type="number" stroke="#64748b" fontSize={11} />
-                  <YAxis
-                    type="category"
-                    dataKey="name"
-                    width={120}
-                    stroke="#64748b"
-                    fontSize={10}
-                    tick={{ fill: "#94a3b8" }}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      background: "#1e293b",
-                      border: "1px solid #475569",
-                      borderRadius: 8,
-                      color: "#e2e8f0",
-                    }}
-                    formatter={(value: number) => [value.toLocaleString(), "Escaneos"]}
-                  />
+                  <XAxis type="number" stroke="#64748b" fontSize={10} />
+                  <YAxis type="category" dataKey="name" width={100} stroke="#64748b" fontSize={9} tick={{ fill: "#94a3b8" }} />
+                  <Tooltip contentStyle={{ background: "#1e293b", border: "1px solid #475569", borderRadius: 8, color: "#e2e8f0" }} formatter={(v: number) => [v.toLocaleString(), "Escaneos"]} />
                   <Bar dataKey="value" fill="#0ea5e9" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
-
-            <div
-              style={{
-                padding: "1rem",
-                background: "#0f172a",
-                border: "1px solid #334155",
-                borderRadius: 12,
-                minHeight: 320,
-              }}
-            >
-              <h3 style={{ margin: "0 0 1rem", fontSize: "1rem" }}>Escaneos por Servicio</h3>
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={stats.byService.slice(0, 8)} margin={{ left: 20 }}>
+            <div style={{ padding: "1rem", background: "#0f172a", border: "1px solid #334155", borderRadius: 12, minHeight: 300 }}>
+              <h3 style={{ margin: "0 0 0.75rem", fontSize: "0.95rem" }}>Por Tipo de persona</h3>
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={stats.byTipoPersona.slice(0, 8)} margin={{ left: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                  <XAxis dataKey="name" stroke="#64748b" fontSize={10} tick={{ fill: "#94a3b8" }} />
-                  <YAxis stroke="#64748b" fontSize={11} tick={{ fill: "#94a3b8" }} />
-                  <Tooltip
-                    contentStyle={{
-                      background: "#1e293b",
-                      border: "1px solid #475569",
-                      borderRadius: 8,
-                      color: "#e2e8f0",
-                    }}
-                    formatter={(value: number) => [value.toLocaleString(), "Escaneos"]}
-                  />
+                  <XAxis dataKey="name" stroke="#64748b" fontSize={9} tick={{ fill: "#94a3b8" }} />
+                  <YAxis stroke="#64748b" fontSize={10} />
+                  <Tooltip contentStyle={{ background: "#1e293b", border: "1px solid #475569", borderRadius: 8, color: "#e2e8f0" }} formatter={(v: number) => [v.toLocaleString(), "Escaneos"]} />
                   <Bar dataKey="value" fill="#38bdf8" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </section>
 
-          <section
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))",
-              gap: "1.5rem",
-              marginBottom: "1.5rem",
-            }}
-          >
-            <div
-              style={{
-                padding: "1rem",
-                background: "#0f172a",
-                border: "1px solid #334155",
-                borderRadius: 12,
-                minHeight: 320,
-              }}
-            >
-              <h3 style={{ margin: "0 0 1rem", fontSize: "1rem" }}>Escaneos por día de la semana</h3>
-              <ResponsiveContainer width="100%" height={280}>
-                <LineChart data={stats.byDia}>
+          <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: "1.5rem", marginBottom: "1.5rem" }}>
+            <div style={{ padding: "1rem", background: "#0f172a", border: "1px solid #334155", borderRadius: 12, minHeight: 300 }}>
+              <h3 style={{ margin: "0 0 0.75rem", fontSize: "0.95rem" }}>Por día de la semana</h3>
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={stats.byDia}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                  <XAxis dataKey="name" stroke="#64748b" fontSize={10} tick={{ fill: "#94a3b8" }} />
-                  <YAxis stroke="#64748b" fontSize={11} tick={{ fill: "#94a3b8" }} />
-                  <Tooltip
-                    contentStyle={{
-                      background: "#1e293b",
-                      border: "1px solid #475569",
-                      borderRadius: 8,
-                      color: "#e2e8f0",
-                    }}
-                    formatter={(value: number) => [value.toLocaleString(), "Escaneos"]}
-                  />
-                  <Line type="monotone" dataKey="value" stroke="#0ea5e9" strokeWidth={2} dot={{ fill: "#0ea5e9" }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div
-              style={{
-                padding: "1rem",
-                background: "#0f172a",
-                border: "1px solid #334155",
-                borderRadius: 12,
-                minHeight: 320,
-              }}
-            >
-              <h3 style={{ margin: "0 0 1rem", fontSize: "1rem" }}>Escaneos por mes</h3>
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={stats.byMes}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                  <XAxis dataKey="name" stroke="#64748b" fontSize={10} tick={{ fill: "#94a3b8" }} />
-                  <YAxis stroke="#64748b" fontSize={11} tick={{ fill: "#94a3b8" }} />
-                  <Tooltip
-                    contentStyle={{
-                      background: "#1e293b",
-                      border: "1px solid #475569",
-                      borderRadius: 8,
-                      color: "#e2e8f0",
-                    }}
-                    formatter={(value: number) => [value.toLocaleString(), "Escaneos"]}
-                  />
+                  <XAxis dataKey="name" stroke="#64748b" fontSize={9} tick={{ fill: "#94a3b8" }} />
+                  <YAxis stroke="#64748b" fontSize={10} />
+                  <Tooltip contentStyle={{ background: "#1e293b", border: "1px solid #475569", borderRadius: 8, color: "#e2e8f0" }} formatter={(v: number) => [v.toLocaleString(), "Escaneos"]} />
                   <Bar dataKey="value" fill="#22d3ee" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
+            {stats.byHora.length > 0 && (
+              <div style={{ padding: "1rem", background: "#0f172a", border: "1px solid #334155", borderRadius: 12, minHeight: 300 }}>
+                <h3 style={{ margin: "0 0 0.75rem", fontSize: "0.95rem" }}>Horas pico</h3>
+                <ResponsiveContainer width="100%" height={260}>
+                  <LineChart data={stats.byHora}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                    <XAxis dataKey="name" stroke="#64748b" fontSize={9} tick={{ fill: "#94a3b8" }} />
+                    <YAxis stroke="#64748b" fontSize={10} />
+                    <Tooltip contentStyle={{ background: "#1e293b", border: "1px solid #475569", borderRadius: 8, color: "#e2e8f0" }} formatter={(v: number) => [v.toLocaleString(), "Escaneos"]} />
+                    <Line type="monotone" dataKey="value" stroke="#06b6d4" strokeWidth={2} dot={{ fill: "#06b6d4" }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </section>
 
-          <section
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))",
-              gap: "1.5rem",
-              marginBottom: "1.5rem",
-            }}
-          >
-            <div
-              style={{
-                padding: "1rem",
-                background: "#0f172a",
-                border: "1px solid #334155",
-                borderRadius: 12,
-                minHeight: 320,
-              }}
-            >
-              <h3 style={{ margin: "0 0 1rem", fontSize: "1rem" }}>Top 5 Expos (pastel)</h3>
-              <ResponsiveContainer width="100%" height={280}>
+          <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: "1.5rem", marginBottom: "1.5rem" }}>
+            {stats.byFecha.length > 0 && (
+              <div style={{ padding: "1rem", background: "#0f172a", border: "1px solid #334155", borderRadius: 12, minHeight: 300 }}>
+                <h3 style={{ margin: "0 0 0.75rem", fontSize: "0.95rem" }}>Tendencia por fecha</h3>
+                <ResponsiveContainer width="100%" height={260}>
+                  <LineChart data={stats.byFecha.slice(-14)}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                    <XAxis dataKey="name" stroke="#64748b" fontSize={9} tick={{ fill: "#94a3b8" }} />
+                    <YAxis stroke="#64748b" fontSize={10} />
+                    <Tooltip contentStyle={{ background: "#1e293b", border: "1px solid #475569", borderRadius: 8, color: "#e2e8f0" }} formatter={(v: number) => [v.toLocaleString(), "Escaneos"]} />
+                    <Line type="monotone" dataKey="value" stroke="#0ea5e9" strokeWidth={2} dot={{ fill: "#0ea5e9" }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+            {stats.byMes.length > 0 && (
+              <div style={{ padding: "1rem", background: "#0f172a", border: "1px solid #334155", borderRadius: 12, minHeight: 300 }}>
+                <h3 style={{ margin: "0 0 0.75rem", fontSize: "0.95rem" }}>Por mes</h3>
+                <ResponsiveContainer width="100%" height={260}>
+                  <BarChart data={stats.byMes}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                    <XAxis dataKey="name" stroke="#64748b" fontSize={9} tick={{ fill: "#94a3b8" }} />
+                    <YAxis stroke="#64748b" fontSize={10} />
+                    <Tooltip contentStyle={{ background: "#1e293b", border: "1px solid #475569", borderRadius: 8, color: "#e2e8f0" }} formatter={(v: number) => [v.toLocaleString(), "Escaneos"]} />
+                    <Bar dataKey="value" fill="#0891b2" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </section>
+
+          <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "1.5rem", marginBottom: "1.5rem" }}>
+            <div style={{ padding: "1rem", background: "#0f172a", border: "1px solid #334155", borderRadius: 12, minHeight: 300 }}>
+              <h3 style={{ margin: "0 0 0.75rem", fontSize: "0.95rem" }}>Distribución expos (top 5)</h3>
+              <ResponsiveContainer width="100%" height={260}>
                 <PieChart>
-                  <Pie
-                    data={stats.byExpo.slice(0, 5)}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={100}
-                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                  >
-                    {stats.byExpo.slice(0, 5).map((_, i) => (
-                      <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                    ))}
+                  <Pie data={stats.byExpo.slice(0, 5)} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}>
+                    {stats.byExpo.slice(0, 5).map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
                   </Pie>
-                  <Tooltip
-                    contentStyle={{
-                      background: "#1e293b",
-                      border: "1px solid #475569",
-                      borderRadius: 8,
-                      color: "#e2e8f0",
-                    }}
-                    formatter={(value: number) => [value.toLocaleString(), "Escaneos"]}
-                  />
+                  <Tooltip contentStyle={{ background: "#1e293b", border: "1px solid #475569", borderRadius: 8, color: "#e2e8f0" }} formatter={(v: number) => [v.toLocaleString(), "Escaneos"]} />
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
             </div>
-
-            <div
-              style={{
-                padding: "1rem",
-                background: "#0f172a",
-                border: "1px solid #334155",
-                borderRadius: 12,
-                minHeight: 320,
-              }}
-            >
-              <h3 style={{ margin: "0 0 1rem", fontSize: "1rem" }}>Top 10 usuarios escaneadores</h3>
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={stats.byUsuario} layout="vertical" margin={{ left: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                  <XAxis type="number" stroke="#64748b" fontSize={10} />
-                  <YAxis
-                    type="category"
-                    dataKey="name"
-                    width={100}
-                    stroke="#64748b"
-                    fontSize={9}
-                    tick={{ fill: "#94a3b8" }}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      background: "#1e293b",
-                      border: "1px solid #475569",
-                      borderRadius: 8,
-                      color: "#e2e8f0",
-                    }}
-                    formatter={(value: number) => [value.toLocaleString(), "Escaneos"]}
-                  />
-                  <Bar dataKey="value" fill="#06b6d4" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            {stats.byEscaneo.length > 0 && stats.byEscaneo.some((x) => x.name !== "Sin dato") && (
+              <div style={{ padding: "1rem", background: "#0f172a", border: "1px solid #334155", borderRadius: 12, minHeight: 300 }}>
+                <h3 style={{ margin: "0 0 0.75rem", fontSize: "0.95rem" }}>Por tipo de escaneo</h3>
+                <ResponsiveContainer width="100%" height={260}>
+                  <BarChart data={stats.byEscaneo.slice(0, 6)}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                    <XAxis dataKey="name" stroke="#64748b" fontSize={9} tick={{ fill: "#94a3b8" }} />
+                    <YAxis stroke="#64748b" fontSize={10} />
+                    <Tooltip contentStyle={{ background: "#1e293b", border: "1px solid #475569", borderRadius: 8, color: "#e2e8f0" }} formatter={(v: number) => [v.toLocaleString(), "Escaneos"]} />
+                    <Bar dataKey="value" fill="#14b8a6" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </section>
-
-          {stats.byDispositivo.length > 0 && (
-            <section
-              style={{
-                padding: "1rem",
-                background: "#0f172a",
-                border: "1px solid #334155",
-                borderRadius: 12,
-                marginBottom: "1.5rem",
-                minHeight: 320,
-              }}
-            >
-              <h3 style={{ margin: "0 0 1rem", fontSize: "1rem" }}>Escaneos por dispositivo</h3>
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={stats.byDispositivo.slice(0, 8)} margin={{ left: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                  <XAxis dataKey="name" stroke="#64748b" fontSize={10} tick={{ fill: "#94a3b8" }} />
-                  <YAxis stroke="#64748b" fontSize={11} tick={{ fill: "#94a3b8" }} />
-                  <Tooltip
-                    contentStyle={{
-                      background: "#1e293b",
-                      border: "1px solid #475569",
-                      borderRadius: 8,
-                      color: "#e2e8f0",
-                    }}
-                    formatter={(value: number) => [value.toLocaleString(), "Escaneos"]}
-                  />
-                  <Bar dataKey="value" fill="#0891b2" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </section>
-          )}
         </>
       )}
     </main>
