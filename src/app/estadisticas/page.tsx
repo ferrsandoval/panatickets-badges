@@ -242,9 +242,9 @@ function EstadisticasContent() {
           Formato: can_ID, Fecha_Escaneo, Hora_Escaneo, Dia_Semana, Mes, Timestamp_Completo, Expo,
           Service_Name, Persona_Escaneada_Nombre, Persona_Escaneada_Compania, Persona_Escaneada_Email,
           Persona_Escaneada_Telefono, Persona_Escaneada_Celular, Escaneado_Por_Usuario, Escaneado_Por_User_ID,
-          Dispositivo, Device_ID. Para guardar en DB y ver cruces: ejecuta{" "}
+          Dispositivo, Device_ID.           Para guardar en DB y ver cruces: ejecuta{" "}
           <code style={{ fontSize: "0.8em" }}>/api/setup-scan-records?token=WEBHOOK_SECRET</code>{" "}
-          una vez si la tabla no existe.
+          una vez (crea scan_records en la base de expo_tech_2026).
         </p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", alignItems: "center" }}>
           <input

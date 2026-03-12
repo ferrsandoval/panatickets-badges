@@ -1,6 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { getPrismaForProject } from "@/lib/prisma";
+import { NextResponse } from "next/server";
+import { getPrismaForProject, getPrismaForScanStats } from "@/lib/prisma";
 import { createMatchKey, toProjectKey } from "@/lib/scan-stats-cross";
 
 const PROJECTS = [
@@ -30,7 +29,8 @@ export type CrossStatsRow = {
  */
 export async function GET() {
   try {
-    const scans = await prisma.scanRecord.findMany({
+    const scanPrisma = getPrismaForScanStats();
+    const scans = await scanPrisma.scanRecord.findMany({
       select: {
         canId: true,
         expo: true,

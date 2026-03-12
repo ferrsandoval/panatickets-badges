@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getPrismaForScanStats } from "@/lib/prisma";
 
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 
 /**
  * GET /api/setup-scan-records?token=WEBHOOK_SECRET
- * Crea la tabla scan_records en la base de datos por defecto (DATABASE_URL).
+ * Crea la tabla scan_records en la base de expo_tech_2026 (o SCAN_STATS_PROJECT).
  * Ejecutar una vez antes de subir el CSV de estadísticas.
  */
 export async function GET(req: NextRequest) {
@@ -15,6 +15,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    const prisma = getPrismaForScanStats();
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "scan_records" (
         "id" TEXT NOT NULL,
@@ -48,7 +49,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      message: "Tabla scan_records creada en la base de datos por defecto (DATABASE_URL).",
+      message: "Tabla scan_records creada (en la base de expo_tech_2026 o SCAN_STATS_PROJECT).",
     });
   } catch (e) {
     console.error("setup-scan-records error", e);

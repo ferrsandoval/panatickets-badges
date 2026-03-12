@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getPrismaForScanStats } from "@/lib/prisma";
 import Papa from "papaparse";
 
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
@@ -12,7 +12,7 @@ function getValue(row: Record<string, string>, key: string): string {
 /**
  * POST /api/admin/upload-scan-stats-csv?token=WEBHOOK_SECRET
  * Body: multipart/form-data con file o CSV en raw body.
- * Inserta en scan_records (DB central por defecto).
+ * Inserta en scan_records (usa la base de expo_tech_2026 o SCAN_STATS_PROJECT).
  * Reemplaza datos existentes: borra todos y vuelve a insertar.
  */
 export async function POST(req: NextRequest) {
@@ -59,6 +59,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const prisma = getPrismaForScanStats();
     await prisma.scanRecord.deleteMany({});
 
     const records = rows.map((row) => ({
