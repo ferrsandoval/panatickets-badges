@@ -26,6 +26,33 @@ model PrintJob {
   @@map("print_jobs")
 }
 
+/// Datos escaneados cargados desde CSV de estadísticas (central, DB por defecto).
+model ScanRecord {
+  id                         String   @id @default(cuid())
+  canId                      String?  @map("can_id")
+  fechaEscaneo               String?  @map("fecha_escaneo")
+  horaEscaneo                String?  @map("hora_escaneo")
+  diaSemana                  String?  @map("dia_semana")
+  mes                        String?  @map("mes")
+  timestampCompleto          String?  @map("timestamp_completo")
+  expo                       String?  @map("expo")
+  serviceName                String?  @map("service_name")
+  personaNombre              String?  @map("persona_nombre")
+  personaCompania            String?  @map("persona_compania")
+  personaEmail               String?  @map("persona_email")
+  personaTelefono            String?  @map("persona_telefono")
+  personaCelular             String?  @map("persona_celular")
+  escaneadoPorUsuario        String?  @map("escaneado_por_usuario")
+  escaneadoPorUserId         String?  @map("escaneado_por_user_id")
+  dispositivo                String?  @map("dispositivo")
+  deviceId                   String?  @map("device_id")
+  createdAt                  DateTime @default(now()) @map("created_at")
+
+  @@index([expo])
+  @@index([personaNombre, personaCompania, personaEmail])
+  @@map("scan_records")
+}
+
 /// Tabla auxiliar central: lookup QR completo -> país (cargada desde CSV).
 /// Expos normales: CSV qr_content,pais (2 columnas). Expos EXPOSITORES: CSV QR Content,Empresa,País (3 columnas).
 model QrCountryLookup {

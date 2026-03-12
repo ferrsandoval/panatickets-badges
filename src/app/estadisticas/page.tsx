@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useCallback, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Papa from "papaparse";
 import {
   BarChart,
@@ -55,10 +55,23 @@ export default function EstadisticasPage() {
   );
 }
 
+type CrossStatsRow = {
+  projectKey: string;
+  projectLabel: string;
+  scansInCsv: number;
+  matchedInPrintJob: number;
+};
+
 function EstadisticasContent() {
   const [data, setData] = useState<ScanRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [uploadToken, setUploadToken] = useState("");
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [crossStats, setCrossStats] = useState<{ totalScans: number; byExpo: CrossStatsRow[] } | null>(null);
+  const [crossLoading, setCrossLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -135,7 +148,59 @@ function EstadisticasContent() {
     setData([]);
     setFileName(null);
     setError(null);
+    setUploadSuccess(null);
+    setUploadError(null);
+    setCrossStats(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const fetchCrossStats = useCallback(async () => {
+    setCrossLoading(true);
+    try {
+      const res = await fetch("/api/admin/scan-stats-cross");
+      if (!res.ok) throw new Error(res.statusText);
+      const json = await res.json();
+      setCrossStats(json);
+    } catch {
+      setCrossStats(null);
+    } finally {
+      setCrossLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCrossStats();
+  }, [fetchCrossStats]);
+
+  const handleSaveToDb = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setUploadError(null);
+    setUploadSuccess(null);
+    if (!uploadToken.trim()) {
+      setUploadError("Introduce el token de administrador (WEBHOOK_SECRET).");
+      return;
+    }
+    if (data.length === 0) {
+      setUploadError("Carga un CSV primero.");
+      return;
+    }
+    setUploadLoading(true);
+    try {
+      const csv = Papa.unparse(data);
+      const formData = new FormData();
+      formData.append("file", new Blob([csv], { type: "text/csv" }), "estadisticas.csv");
+      const url = new URL("/api/admin/upload-scan-stats-csv", window.location.origin);
+      url.searchParams.set("token", uploadToken.trim());
+      const res = await fetch(url.toString(), { method: "POST", body: formData });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.detail ?? json.error ?? res.statusText);
+      setUploadSuccess(json.message ?? `Guardados ${json.total ?? data.length} registros.`);
+      fetchCrossStats();
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Error al guardar");
+    } finally {
+      setUploadLoading(false);
+    }
   };
 
   return (
@@ -174,10 +239,12 @@ function EstadisticasContent() {
       >
         <h2 style={{ margin: "0 0 0.75rem", fontSize: "1.15rem" }}>Cargar CSV de datos escaneados</h2>
         <p style={{ margin: "0 0 1rem", fontSize: "0.85rem", color: "#94a3b8" }}>
-          Formato esperado: can_ID, Fecha_Escaneo, Hora_Escaneo, Dia_Semana, Mes, Timestamp_Completo, Expo,
+          Formato: can_ID, Fecha_Escaneo, Hora_Escaneo, Dia_Semana, Mes, Timestamp_Completo, Expo,
           Service_Name, Persona_Escaneada_Nombre, Persona_Escaneada_Compania, Persona_Escaneada_Email,
           Persona_Escaneada_Telefono, Persona_Escaneada_Celular, Escaneado_Por_Usuario, Escaneado_Por_User_ID,
-          Dispositivo, Device_ID
+          Dispositivo, Device_ID. Para guardar en DB y ver cruces: ejecuta{" "}
+          <code style={{ fontSize: "0.8em" }}>/api/setup-scan-records?token=WEBHOOK_SECRET</code>{" "}
+          una vez si la tabla no existe.
         </p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", alignItems: "center" }}>
           <input
@@ -200,6 +267,38 @@ function EstadisticasContent() {
               <span style={{ color: "#34d399", fontSize: "0.9rem" }}>
                 {fileName} — {data.length} registros
               </span>
+              <form onSubmit={handleSaveToDb} style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", alignItems: "center" }}>
+                <input
+                  type="password"
+                  value={uploadToken}
+                  onChange={(e) => setUploadToken(e.target.value)}
+                  placeholder="Token (WEBHOOK_SECRET)"
+                  style={{
+                    padding: "0.4rem 0.6rem",
+                    background: "#1e293b",
+                    border: "1px solid #475569",
+                    borderRadius: 6,
+                    color: "#e2e8f0",
+                    fontSize: "0.85rem",
+                    width: 180,
+                  }}
+                />
+                <button
+                  type="submit"
+                  disabled={uploadLoading}
+                  style={{
+                    padding: "0.4rem 0.85rem",
+                    background: uploadLoading ? "#475569" : "#0ea5e9",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: 6,
+                    fontSize: "0.85rem",
+                    cursor: uploadLoading ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {uploadLoading ? "Guardando…" : "Guardar en base de datos"}
+                </button>
+              </form>
               <button
                 type="button"
                 onClick={clearData}
@@ -221,7 +320,77 @@ function EstadisticasContent() {
         {error && (
           <p style={{ margin: "0.75rem 0 0", color: "#f87171", fontSize: "0.9rem" }}>{error}</p>
         )}
+        {uploadError && (
+          <p style={{ margin: "0.75rem 0 0", color: "#f87171", fontSize: "0.9rem" }}>{uploadError}</p>
+        )}
+        {uploadSuccess && (
+          <p style={{ margin: "0.75rem 0 0", color: "#34d399", fontSize: "0.9rem" }}>{uploadSuccess}</p>
+        )}
       </section>
+
+      {crossStats && crossStats.totalScans > 0 && (
+        <section
+          style={{
+            marginBottom: "1.5rem",
+            padding: "1.25rem",
+            border: "1px solid #334155",
+            borderRadius: 12,
+            background: "#0f172a",
+          }}
+        >
+          <h2 style={{ margin: "0 0 0.75rem", fontSize: "1.15rem" }}>
+            Cruce con impresos por expo
+          </h2>
+          <p style={{ margin: "0 0 1rem", fontSize: "0.85rem", color: "#94a3b8" }}>
+            Escaneos del CSV que coinciden con credenciales impresas en cada base de datos de expo.
+          </p>
+          {crossLoading ? (
+            <p style={{ color: "#94a3b8" }}>Cargando cruces…</p>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9rem" }}>
+                <thead>
+                  <tr style={{ borderBottom: "2px solid #334155" }}>
+                    <th style={{ textAlign: "left", padding: "0.75rem", color: "#94a3b8" }}>Expo</th>
+                    <th style={{ textAlign: "right", padding: "0.75rem", color: "#94a3b8" }}>Escaneos en CSV</th>
+                    <th style={{ textAlign: "right", padding: "0.75rem", color: "#94a3b8" }}>Coinciden con impresos</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {crossStats.byExpo.map((r) => (
+                      <tr key={r.projectKey} style={{ borderBottom: "1px solid #1e293b" }}>
+                        <td style={{ padding: "0.75rem", color: "#e2e8f0" }}>{r.projectLabel}</td>
+                        <td style={{ padding: "0.75rem", textAlign: "right", color: "#94a3b8" }}>
+                          {r.scansInCsv.toLocaleString()}
+                        </td>
+                        <td style={{ padding: "0.75rem", textAlign: "right", color: "#34d399", fontWeight: 600 }}>
+                          {r.matchedInPrintJob.toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={fetchCrossStats}
+            disabled={crossLoading}
+            style={{
+              marginTop: "0.75rem",
+              padding: "0.4rem 0.75rem",
+              background: "#1e293b",
+              color: "#e2e8f0",
+              border: "1px solid #475569",
+              borderRadius: 6,
+              fontSize: "0.85rem",
+              cursor: crossLoading ? "not-allowed" : "pointer",
+            }}
+          >
+            Actualizar cruces
+          </button>
+        </section>
+      )}
 
       {!stats ? (
         <section
