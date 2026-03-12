@@ -58,13 +58,6 @@ export default function EstadisticasPage() {
   );
 }
 
-type CrossStatsRow = {
-  projectKey: string;
-  projectLabel: string;
-  scansInCsv: number;
-  matchedInPrintJob: number;
-};
-
 function EstadisticasContent() {
   const [data, setData] = useState<ScanRow[]>([]);
   const [dataSource, setDataSource] = useState<"db" | "csv" | null>(null);
@@ -76,7 +69,6 @@ function EstadisticasContent() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [crossStats, setCrossStats] = useState<{ totalScans: number; byExpo: CrossStatsRow[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -107,20 +99,10 @@ function EstadisticasContent() {
     }
   }, []);
 
-  const fetchCrossStats = useCallback(async () => {
-    try {
-      const res = await fetch("/api/admin/scan-stats-cross");
-      if (!res.ok) throw new Error(res.statusText);
-      return await res.json();
-    } catch {
-      return null;
-    }
-  }, []);
-
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    Promise.all([fetchFromDb(), fetchCrossStats()]).then(([dbData, cross]) => {
+    fetchFromDb().then((dbData) => {
       if (cancelled) return;
       if (dbData.length > 0) {
         setData(dbData);
@@ -129,11 +111,10 @@ function EstadisticasContent() {
         setData([]);
         setDataSource(null);
       }
-      setCrossStats(cross);
       setLoading(false);
     });
     return () => { cancelled = true; };
-  }, [fetchFromDb, fetchCrossStats]);
+  }, [fetchFromDb]);
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -238,14 +219,12 @@ function EstadisticasContent() {
     setDataSource(null);
     setUploadSuccess(null);
     setUploadError(null);
-    setCrossStats(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
     fetchFromDb().then((dbData) => {
       if (dbData.length > 0) {
         setData(dbData);
         setDataSource("db");
       }
-      fetchCrossStats().then(setCrossStats);
     });
   };
 
@@ -273,7 +252,6 @@ function EstadisticasContent() {
       if (!res.ok) throw new Error(json.detail ?? json.error ?? res.statusText);
       setUploadSuccess(json.message ?? `Guardados ${json.total ?? data.length} registros.`);
       setDataSource("db");
-      fetchCrossStats().then(setCrossStats);
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Error al guardar");
     } finally {
@@ -297,7 +275,6 @@ function EstadisticasContent() {
       if (!res.ok) throw new Error(json.detail ?? json.error ?? res.statusText);
       setData([]);
       setDataSource(null);
-      setCrossStats(null);
       setUploadSuccess(`Base eliminada. ${json.count ?? 0} registros borrados.`);
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : "Error al eliminar");
@@ -313,7 +290,6 @@ function EstadisticasContent() {
       setDataSource(dbData.length > 0 ? "db" : null);
       setLoading(false);
     });
-    fetchCrossStats().then(setCrossStats);
   };
 
   return (
@@ -398,32 +374,6 @@ function EstadisticasContent() {
         {uploadSuccess && <p style={{ margin: "0.75rem 0 0", color: "#34d399", fontSize: "0.9rem" }}>{uploadSuccess}</p>}
       </section>
 
-      {crossStats && crossStats.totalScans > 0 && (
-        <section style={{ marginBottom: "1.5rem", padding: "1.25rem", border: "1px solid #334155", borderRadius: 12, background: "#0f172a" }}>
-          <h2 style={{ margin: "0 0 0.75rem", fontSize: "1.15rem" }}>Cruce con impresos por expo</h2>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9rem" }}>
-              <thead>
-                <tr style={{ borderBottom: "2px solid #334155" }}>
-                  <th style={{ textAlign: "left", padding: "0.75rem", color: "#94a3b8" }}>Expo</th>
-                  <th style={{ textAlign: "right", padding: "0.75rem", color: "#94a3b8" }}>Escaneos</th>
-                  <th style={{ textAlign: "right", padding: "0.75rem", color: "#94a3b8" }}>Coinciden impresos</th>
-                </tr>
-              </thead>
-              <tbody>
-                {crossStats.byExpo.map((r) => (
-                  <tr key={r.projectKey} style={{ borderBottom: "1px solid #1e293b" }}>
-                    <td style={{ padding: "0.75rem", color: "#e2e8f0" }}>{r.projectLabel}</td>
-                    <td style={{ padding: "0.75rem", textAlign: "right", color: "#94a3b8" }}>{r.scansInCsv.toLocaleString()}</td>
-                    <td style={{ padding: "0.75rem", textAlign: "right", color: "#34d399", fontWeight: 600 }}>{r.matchedInPrintJob.toLocaleString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
-
       {loading ? (
         <p style={{ color: "#94a3b8" }}>Cargando datos…</p>
       ) : !stats ? (
@@ -445,14 +395,6 @@ function EstadisticasContent() {
               <p style={{ margin: 0, fontSize: "0.75rem", color: "#94a3b8", textTransform: "uppercase" }}>Tipos persona</p>
               <p style={{ margin: "0.35rem 0 0", fontSize: "1.5rem", fontWeight: 700, color: "#06b6d4" }}>{stats.byTipoPersona.length}</p>
             </div>
-            {crossStats && crossStats.totalScans > 0 && (
-              <div style={{ padding: "1rem", background: "#0f172a", border: "1px solid #334155", borderRadius: 12 }}>
-                <p style={{ margin: 0, fontSize: "0.75rem", color: "#94a3b8", textTransform: "uppercase" }}>Tasa impresos</p>
-                <p style={{ margin: "0.35rem 0 0", fontSize: "1.5rem", fontWeight: 700, color: "#34d399" }}>
-                  {((crossStats.byExpo.reduce((s, r) => s + r.matchedInPrintJob, 0) / stats.total) * 100).toFixed(1)}%
-                </p>
-              </div>
-            )}
           </section>
 
           <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: "1.5rem", marginBottom: "1.5rem" }}>
