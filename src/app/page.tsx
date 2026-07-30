@@ -11,18 +11,8 @@ type PrintJob = {
   printedAt: string | null;
 };
 
-const PROJECTS = [
-  { key: "expo_logistica_2026", label: "EXPO LOGISTICA 2026" },
-  { key: "expo_turismo_2026", label: "EXPO TURISMO 2026" },
-  { key: "expo_comer_2026", label: "EXPOCOMER 2026" },
-  { key: "expo_tech_2026", label: "EXPO TECH 2026" },
-  { key: "expo_electronica_2026", label: "EXPO ELECTRÓNICA 2026" },
-  { key: "expo_logistica_expositores_2026", label: "EXPO LOGISTICA EXPOSITORES 2026" },
-  { key: "expo_turismo_expositores_2026", label: "EXPO TURISMO EXPOSITORES 2026" },
-  { key: "expo_comer_expositores_2026", label: "EXPOCOMER EXPOSITORES 2026" },
-  { key: "expo_tech_expositores_2026", label: "EXPO TECH EXPOSITORES 2026" },
-  { key: "expo_electronica_expositores_2026", label: "EXPO ELECTRÓNICA EXPOSITORES 2026" },
-] as const;
+// Prueba de venta a cliente: un solo proyecto (boletos), sin selector de expos.
+const PROJECTS = [{ key: "expo_logistica_2026", label: "Boletos" }] as const;
 
 const POINTS = [
   { key: "punto1", label: "Punto 1" },
@@ -232,80 +222,6 @@ function PrintQueueContent() {
               {currentPointLabel}
             </div>
           )}
-          <Link
-            href="/imprimir-invitados"
-            style={{
-              padding: "0.55rem 0.85rem",
-              borderRadius: 8,
-              border: "1px solid #0ea5e9",
-              color: "#e0f2fe",
-              backgroundColor: "rgba(14, 165, 233, 0.25)",
-              fontSize: "0.9rem",
-              textDecoration: "none",
-              fontWeight: 600,
-            }}
-          >
-            Imprimir invitados
-          </Link>
-          <Link
-            href="/imprimir-expositores"
-            style={{
-              padding: "0.55rem 0.85rem",
-              borderRadius: 8,
-              border: "1px solid #0ea5e9",
-              color: "#e0f2fe",
-              backgroundColor: "rgba(14, 165, 233, 0.25)",
-              fontSize: "0.9rem",
-              textDecoration: "none",
-              fontWeight: 600,
-            }}
-          >
-            Imprimir expositores
-          </Link>
-          <Link
-            href="/databases"
-            style={{
-              padding: "0.55rem 0.85rem",
-              borderRadius: 8,
-              border: "1px solid #0ea5e9",
-              color: "#38bdf8",
-              fontSize: "0.9rem",
-              textDecoration: "none",
-              fontWeight: 600,
-            }}
-          >
-            Ver bases de datos cargadas
-          </Link>
-          <Link
-            href="/informe-impresos"
-            style={{
-              padding: "0.55rem 0.85rem",
-              borderRadius: 8,
-              border: "1px solid #0ea5e9",
-              color: "#e0f2fe",
-              backgroundColor: "rgba(14, 165, 233, 0.25)",
-              fontSize: "0.9rem",
-              textDecoration: "none",
-              fontWeight: 600,
-            }}
-          >
-            Informe de impresos
-          </Link>
-          <Link
-            href="/estadisticas"
-            style={{
-              padding: "0.55rem 0.85rem",
-              borderRadius: 8,
-              border: "1px solid #0ea5e9",
-              color: "#e0f2fe",
-              backgroundColor: "rgba(14, 165, 233, 0.25)",
-              fontSize: "0.9rem",
-              textDecoration: "none",
-              fontWeight: 600,
-            }}
-          >
-            Estadísticas
-          </Link>
         </div>
       </section>
 

@@ -197,11 +197,13 @@ export default function LabelPage() {
 
   // Render etiqueta CodeREADr (fijo)
   const paisValue = getLabelValue(job.pais);
+  const isTicket = job.source === "ticket";
   const codereadrLines = [
     { text: sanitizeForPrint(getLabelValue(job.name)), className: "label-name" },
     { text: sanitizeForPrint(getLabelValue(job.empresa)), className: "label-empresa" },
     ...(paisValue ? [{ text: sanitizeForPrint(paisValue), className: "label-pais" }] : []),
-    { text: getLabelValue(expoLabel), className: "label-expo" },
+    // Los boletos no muestran el nombre de la expo (esa clave es solo interna, para la base de datos).
+    ...(!isTicket ? [{ text: getLabelValue(expoLabel), className: "label-expo" }] : []),
   ];
 
   const debugPanel = (
