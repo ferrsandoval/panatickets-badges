@@ -151,9 +151,14 @@ export async function POST(req: NextRequest) {
     const ticketHash = contentHash(qrText);
     const ticketRawPayload = point ? `[point:${point}]\n${qrText.slice(0, 2000)}` : qrText.slice(0, 2000);
     try {
-      const existing = scanId
-        ? await projectPrisma.printJob.findUnique({ where: { scanId }, select: { id: true } })
-        : await projectPrisma.printJob.findUnique({ where: { contentHash: ticketHash }, select: { id: true } });
+      // Busca por scanId O por contentHash (no solo uno u otro): un reescaneo
+      // del mismo boleto siempre trae un scanId nuevo (EscanerID cambia cada
+      // vez), así que solo mirar scanId nunca lo encuentra como duplicado, y
+      // el create() de abajo choca con la restricción única de content_hash.
+      const existing = await projectPrisma.printJob.findFirst({
+        where: { OR: [...(scanId ? [{ scanId }] : []), { contentHash: ticketHash }] },
+        select: { id: true },
+      });
 
       if (existing) {
         return NextResponse.json({ ok: true, duplicate: true, id: existing.id }, { status: 200 });
@@ -250,9 +255,12 @@ export async function POST(req: NextRequest) {
 
   try {
     try {
-      const existing = scanId
-        ? await projectPrisma.printJob.findUnique({ where: { scanId }, select: { id: true } })
-        : await projectPrisma.printJob.findUnique({ where: { contentHash: hash }, select: { id: true } });
+      // Busca por scanId O por contentHash: ver comentario equivalente en la
+      // rama de ticket_lookup más arriba (mismo bug, misma causa).
+      const existing = await projectPrisma.printJob.findFirst({
+        where: { OR: [...(scanId ? [{ scanId }] : []), { contentHash: hash }] },
+        select: { id: true },
+      });
 
       if (existing) {
         return NextResponse.json({ ok: true, duplicate: true, id: existing.id }, { status: 200 });
