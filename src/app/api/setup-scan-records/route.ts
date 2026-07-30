@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPrismaForScanStats } from "@/lib/prisma";
+import {
+  getPrismaForScanStats,
+  getSchemaFromDatabaseUrl,
+  resolveDatabaseUrlForProject,
+  SCAN_STATS_PROJECT,
+} from "@/lib/prisma";
 
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 
@@ -16,9 +21,14 @@ export async function GET(req: NextRequest) {
 
   try {
     const prisma = getPrismaForScanStats();
-    await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS "scan_records" CASCADE`);
+    // El SQL crudo no respeta el ?schema= de la URL (solo lo respetan las consultas
+    // que genera el propio Prisma Client), así que hay que cualificar la tabla.
+    const schema = getSchemaFromDatabaseUrl(resolveDatabaseUrlForProject(SCAN_STATS_PROJECT)) ?? "public";
+    const s = schema.replace(/"/g, '""');
+
+    await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS "${s}"."scan_records" CASCADE`);
     await prisma.$executeRawUnsafe(`
-      CREATE TABLE "scan_records" (
+      CREATE TABLE "${s}"."scan_records" (
         "id" TEXT NOT NULL,
         "scan_id" TEXT,
         "fecha" TEXT,
@@ -37,15 +47,16 @@ export async function GET(req: NextRequest) {
         CONSTRAINT "scan_records_pkey" PRIMARY KEY ("id")
       );
     `);
-    await prisma.$executeRawUnsafe(`CREATE INDEX "scan_records_expo_idx" ON "scan_records"("expo")`);
-    await prisma.$executeRawUnsafe(`CREATE INDEX "scan_records_tipo_persona_idx" ON "scan_records"("tipo_persona")`);
-    await prisma.$executeRawUnsafe(`CREATE INDEX "scan_records_persona_idx" ON "scan_records"("nombre", "empresa", "email")`);
-    await prisma.$executeRawUnsafe(`CREATE INDEX "scan_records_fecha_idx" ON "scan_records"("fecha")`);
-    await prisma.$executeRawUnsafe(`CREATE INDEX "scan_records_hora_idx" ON "scan_records"("hora")`);
+    await prisma.$executeRawUnsafe(`CREATE INDEX "scan_records_expo_idx" ON "${s}"."scan_records"("expo")`);
+    await prisma.$executeRawUnsafe(`CREATE INDEX "scan_records_tipo_persona_idx" ON "${s}"."scan_records"("tipo_persona")`);
+    await prisma.$executeRawUnsafe(`CREATE INDEX "scan_records_persona_idx" ON "${s}"."scan_records"("nombre", "empresa", "email")`);
+    await prisma.$executeRawUnsafe(`CREATE INDEX "scan_records_fecha_idx" ON "${s}"."scan_records"("fecha")`);
+    await prisma.$executeRawUnsafe(`CREATE INDEX "scan_records_hora_idx" ON "${s}"."scan_records"("hora")`);
 
     return NextResponse.json({
       ok: true,
       message: "Tabla scan_records creada (esquema nuevo).",
+      schema,
     });
   } catch (e) {
     console.error("setup-scan-records error", e);

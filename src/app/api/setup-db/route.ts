@@ -33,14 +33,17 @@ export async function GET(req: NextRequest) {
     const prisma = getPrismaForProject(project);
 
     // Varias expos pueden compartir una instancia Postgres con un schema por expo.
-    // Las tablas se crean sin cualificar, así que el schema debe existir antes.
-    const schema = getSchemaFromDatabaseUrl(resolveDatabaseUrlForProject(project));
-    if (schema) {
-      await prisma.$executeRawUnsafe(`CREATE SCHEMA IF NOT EXISTS "${schema.replace(/"/g, '""')}";`);
+    // El SQL crudo (`$executeRawUnsafe`) NO respeta el ?schema= de la URL —solo lo
+    // respetan las consultas que genera el propio Prisma Client—, así que cada tabla
+    // debe cualificarse explícitamente con el schema o todo cae en "public".
+    const schema = getSchemaFromDatabaseUrl(resolveDatabaseUrlForProject(project)) ?? "public";
+    const s = schema.replace(/"/g, '""');
+    if (schema !== "public") {
+      await prisma.$executeRawUnsafe(`CREATE SCHEMA IF NOT EXISTS "${s}";`);
     }
 
     await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS "print_jobs" (
+      CREATE TABLE IF NOT EXISTS "${s}"."print_jobs" (
         "id" TEXT NOT NULL,
         "scan_id" TEXT,
         "content_hash" TEXT,
@@ -53,25 +56,25 @@ export async function GET(req: NextRequest) {
       );
     `);
     await prisma.$executeRawUnsafe(`
-      CREATE UNIQUE INDEX IF NOT EXISTS "print_jobs_scan_id_key" ON "print_jobs"("scan_id");
+      CREATE UNIQUE INDEX IF NOT EXISTS "print_jobs_scan_id_key" ON "${s}"."print_jobs"("scan_id");
     `);
     await prisma.$executeRawUnsafe(`
-      CREATE UNIQUE INDEX IF NOT EXISTS "print_jobs_content_hash_key" ON "print_jobs"("content_hash");
+      CREATE UNIQUE INDEX IF NOT EXISTS "print_jobs_content_hash_key" ON "${s}"."print_jobs"("content_hash");
     `);
-    await prisma.$executeRawUnsafe(`ALTER TABLE "print_jobs" ADD COLUMN IF NOT EXISTS "point" TEXT;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "${s}"."print_jobs" ADD COLUMN IF NOT EXISTS "point" TEXT;`);
     await prisma.$executeRawUnsafe(`
-      CREATE INDEX IF NOT EXISTS "print_jobs_point_printed_at_created_at_idx" ON "print_jobs"("point", "printed_at", "created_at");
+      CREATE INDEX IF NOT EXISTS "print_jobs_point_printed_at_created_at_idx" ON "${s}"."print_jobs"("point", "printed_at", "created_at");
     `);
 
-    await prisma.$executeRawUnsafe(`ALTER TABLE "print_jobs" ADD COLUMN IF NOT EXISTS "empresa" TEXT;`);
-    await prisma.$executeRawUnsafe(`ALTER TABLE "print_jobs" ADD COLUMN IF NOT EXISTS "pais" TEXT;`);
-    await prisma.$executeRawUnsafe(`ALTER TABLE "print_jobs" ADD COLUMN IF NOT EXISTS "feria" TEXT;`);
-    await prisma.$executeRawUnsafe(`ALTER TABLE "print_jobs" ADD COLUMN IF NOT EXISTS "telefono" TEXT;`);
-    await prisma.$executeRawUnsafe(`ALTER TABLE "print_jobs" ADD COLUMN IF NOT EXISTS "email" TEXT;`);
-    await prisma.$executeRawUnsafe(`ALTER TABLE "print_jobs" ADD COLUMN IF NOT EXISTS "source" TEXT;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "${s}"."print_jobs" ADD COLUMN IF NOT EXISTS "empresa" TEXT;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "${s}"."print_jobs" ADD COLUMN IF NOT EXISTS "pais" TEXT;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "${s}"."print_jobs" ADD COLUMN IF NOT EXISTS "feria" TEXT;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "${s}"."print_jobs" ADD COLUMN IF NOT EXISTS "telefono" TEXT;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "${s}"."print_jobs" ADD COLUMN IF NOT EXISTS "email" TEXT;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "${s}"."print_jobs" ADD COLUMN IF NOT EXISTS "source" TEXT;`);
 
     await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS "qr_country_lookup" (
+      CREATE TABLE IF NOT EXISTS "${s}"."qr_country_lookup" (
         "id" TEXT NOT NULL,
         "qr_content" TEXT NOT NULL,
         "empresa" TEXT,
@@ -81,15 +84,15 @@ export async function GET(req: NextRequest) {
       );
     `);
     await prisma.$executeRawUnsafe(`
-      CREATE UNIQUE INDEX IF NOT EXISTS "qr_country_lookup_qr_content_key" ON "qr_country_lookup"("qr_content");
+      CREATE UNIQUE INDEX IF NOT EXISTS "qr_country_lookup_qr_content_key" ON "${s}"."qr_country_lookup"("qr_content");
     `);
-    await prisma.$executeRawUnsafe(`ALTER TABLE "qr_country_lookup" ADD COLUMN IF NOT EXISTS "empresa" TEXT;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "${s}"."qr_country_lookup" ADD COLUMN IF NOT EXISTS "empresa" TEXT;`);
 
     return NextResponse.json({
       ok: true,
       message: `Tablas print_jobs y qr_country_lookup creadas/actualizadas para el proyecto "${project}".`,
       project,
-      schema: schema ?? "public (por defecto)",
+      schema,
     });
   } catch (e) {
     console.error("setup-db error", e);

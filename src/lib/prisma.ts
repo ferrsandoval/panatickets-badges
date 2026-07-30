@@ -122,7 +122,7 @@ export function getPrismaForProject(project: string | null | undefined): PrismaC
 }
 
 /** Base usada para scan_records (expo_tech_2026 es la más pequeña). Configurable con SCAN_STATS_PROJECT. */
-const SCAN_STATS_PROJECT =
+export const SCAN_STATS_PROJECT =
   process.env.SCAN_STATS_PROJECT?.trim() || "expo_tech_2026";
 
 /** Prisma para scan_records: usa una de las 10 bases existentes (no añade conexión nueva). */
