@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getPrismaForProject } from "@/lib/prisma";
 import { qrLookupCandidates, findPaisFromLookup } from "@/lib/qr-lookup";
+import { findTicketByQrContent } from "@/lib/ticket-lookup";
 import {
   parseNameFromQrText,
   parseEmpresaFromQrText,
@@ -136,6 +137,56 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const projectPrisma = getPrismaForProject(project);
+
+  // Boletos: el QR es un código de barras opaco (sin "Nombre="/"Name=" embebido).
+  // Se intenta resolver por ticket_lookup ANTES de exigir el formato con pipes,
+  // para no romper el flujo existente de las expos con QR tipo Nombre='...'|...
+  const ticketMatch = qrText ? await findTicketByQrContent(projectPrisma, qrText) : null;
+  if (ticketMatch) {
+    const ticketHash = contentHash(qrText);
+    const ticketRawPayload = point ? `[point:${point}]\n${qrText.slice(0, 2000)}` : qrText.slice(0, 2000);
+    try {
+      const existing = scanId
+        ? await projectPrisma.printJob.findUnique({ where: { scanId }, select: { id: true } })
+        : await projectPrisma.printJob.findUnique({ where: { contentHash: ticketHash }, select: { id: true } });
+
+      if (existing) {
+        return NextResponse.json({ ok: true, duplicate: true, id: existing.id }, { status: 200 });
+      }
+
+      const ticketJob = await projectPrisma.printJob.create({
+        data: {
+          scanId: scanId ?? undefined,
+          contentHash: ticketHash,
+          name: ticketMatch.nombre,
+          rawPayload: ticketRawPayload,
+          source: "ticket",
+          ...(point !== undefined && { point }),
+          ...(ticketMatch.categoria != null && { empresa: ticketMatch.categoria }),
+          ...(ticketMatch.tipoBoleto != null && { pais: ticketMatch.tipoBoleto }),
+        },
+      });
+
+      return NextResponse.json(
+        {
+          ok: true,
+          id: ticketJob.id,
+          parsed: { name: ticketMatch.nombre, categoria: ticketMatch.categoria, tipoBoleto: ticketMatch.tipoBoleto },
+          source: "ticket",
+          qrPreview: qrText.slice(0, 150),
+        },
+        { status: 201 }
+      );
+    } catch (e) {
+      console.error("webhook codereadr ticket error", e);
+      return NextResponse.json(
+        { error: "Internal error", detail: e instanceof Error ? e.message : String(e) },
+        { status: 500 }
+      );
+    }
+  }
+
   if (!qrText || qrText.length < 15) {
     return NextResponse.json(
       {
@@ -186,8 +237,6 @@ export async function POST(req: NextRequest) {
 
   const hash = contentHash(qrText);
   const storedRawPayload = point ? `[point:${point}]\n${qrText.slice(0, 2000)}` : qrText.slice(0, 2000);
-
-  const projectPrisma = getPrismaForProject(project);
 
   // País SIEMPRE se obtiene de qr_country_lookup (el QR llega sin país)
   const payloadVariant = point ? `[point:${point}]\n${qrText.slice(0, 2000)}` : qrText.slice(0, 2000);

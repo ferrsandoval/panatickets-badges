@@ -88,9 +88,24 @@ export async function GET(req: NextRequest) {
     `);
     await prisma.$executeRawUnsafe(`ALTER TABLE "${s}"."qr_country_lookup" ADD COLUMN IF NOT EXISTS "empresa" TEXT;`);
 
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "${s}"."ticket_lookup" (
+        "id" TEXT NOT NULL,
+        "qr_content" TEXT NOT NULL,
+        "nombre" TEXT NOT NULL,
+        "categoria" TEXT,
+        "tipo_boleto" TEXT,
+        "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "ticket_lookup_pkey" PRIMARY KEY ("id")
+      );
+    `);
+    await prisma.$executeRawUnsafe(`
+      CREATE UNIQUE INDEX IF NOT EXISTS "ticket_lookup_qr_content_key" ON "${s}"."ticket_lookup"("qr_content");
+    `);
+
     return NextResponse.json({
       ok: true,
-      message: `Tablas print_jobs y qr_country_lookup creadas/actualizadas para el proyecto "${project}".`,
+      message: `Tablas print_jobs, qr_country_lookup y ticket_lookup creadas/actualizadas para el proyecto "${project}".`,
       project,
       schema,
     });

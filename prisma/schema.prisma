@@ -64,3 +64,17 @@ model QrCountryLookup {
 
   @@map("qr_country_lookup")
 }
+
+/// Lookup de boletos: el QR es un código de barras opaco (sin texto Nombre=...
+/// embebido), así que nombre/categoría/tipo de boleto se resuelven contra esta
+/// tabla en vez de parsearse del propio QR. Cargada desde CSV de venta de boletos.
+model TicketLookup {
+  id          String   @id @default(cuid())
+  qrContent   String   @unique @map("qr_content")
+  nombre      String   @map("nombre")
+  categoria   String?  @map("categoria")
+  tipoBoleto  String?  @map("tipo_boleto")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("ticket_lookup")
+}
