@@ -222,6 +222,20 @@ function PrintQueueContent() {
               {currentPointLabel}
             </div>
           )}
+          <Link
+            href="/databases"
+            style={{
+              padding: "0.55rem 0.85rem",
+              borderRadius: 8,
+              border: "1px solid #0ea5e9",
+              color: "#38bdf8",
+              fontSize: "0.9rem",
+              textDecoration: "none",
+              fontWeight: 600,
+            }}
+          >
+            Ver impresos / reimprimir
+          </Link>
         </div>
       </section>
 
