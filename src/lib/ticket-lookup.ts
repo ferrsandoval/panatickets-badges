@@ -74,8 +74,10 @@ export function parseTicketCsvText(text: string): TicketLookupRow[] {
     const categoria = parts[2]?.trim();
     const tipoBoleto = parts[9]?.trim();
     if (!qrContent || !nombre) continue;
-    // Salta la fila de cabecera si el archivo la trae (Column1;Column2;...).
-    if (/^column1$/i.test(qrContent)) continue;
+    // Salta la fila de cabecera, sea cual sea el nombre de columna usado
+    // (Column1/ID_Barcode/etc.): se detecta porque "nombre" es literalmente
+    // la palabra "Nombre" (nunca sería el valor real de una persona).
+    if (/^nombre$/i.test(nombre)) continue;
     rows.push({ qrContent, nombre, categoria, tipoBoleto });
   }
   return rows;
