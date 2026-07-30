@@ -11,6 +11,7 @@ import {
 } from "@/lib/qr-parser";
 import { hasUnprintableOrRisky } from "@/lib/print-text";
 import { PROJECTS_INVITADOS } from "@/lib/print-projects";
+import { ManualUserEntry } from "@/components/manual-user-entry";
 
 const PROJECTS = PROJECTS_INVITADOS;
 
@@ -196,6 +197,8 @@ function ImprimirInvitadosContent() {
         style={{
           display: "flex",
           alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
           gap: "1rem",
           marginBottom: "1.5rem",
           padding: "1rem 1.25rem",
@@ -205,10 +208,17 @@ function ImprimirInvitadosContent() {
             "linear-gradient(135deg, rgba(2,6,23,0.96) 0%, rgba(15,23,42,0.96) 60%, rgba(8,47,73,0.96) 100%)",
         }}
       >
-        <Link href="/" style={{ color: "#38bdf8", textDecoration: "none", fontSize: "0.9rem" }}>
-          ← Cola de impresión
-        </Link>
-        <h1 style={{ margin: 0, fontSize: "1.5rem", color: "#e2e8f0" }}>Imprimir invitados</h1>
+        <div style={{ display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
+          <Link href="/" style={{ color: "#38bdf8", textDecoration: "none", fontSize: "0.9rem" }}>
+            ← Cola de impresión
+          </Link>
+          <h1 style={{ margin: 0, fontSize: "1.5rem", color: "#e2e8f0" }}>Imprimir invitados</h1>
+        </div>
+        <ManualUserEntry
+          projects={PROJECTS}
+          buttonLabel="Ingresar invitado manual"
+          onSaved={fetchAllQrLookup}
+        />
       </section>
 
       <p style={{ margin: "0 0 1rem", color: "#94a3b8", fontSize: "0.9rem" }}>

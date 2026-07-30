@@ -80,20 +80,24 @@ DATABASE_URL_EXPO_ELECTRONICA_EXPOSITORES_2026_DATABASE_URL=postgres://...
    - https://**TU_APP**.vercel.app/api/setup-db?token=**TU_TOKEN**&project=expo_comer_expositores_2026
    - https://**TU_APP**.vercel.app/api/setup-db?token=**TU_TOKEN**&project=expo_tech_expositores_2026
    - https://**TU_APP**.vercel.app/api/setup-db?token=**TU_TOKEN**&project=expo_electronica_expositores_2026  
-y   Debes ver algo como: `{"ok":true,"message":"Tablas print_jobs y qr_country_lookup creadas/actualizadas..."}`
+   Debes ver algo como: `{"ok":true,"message":"Tablas print_jobs y qr_country_lookup creadas/actualizadas..."}`
 
-3. **Cargar QR → país (lookup)**  
+3. **Tabla scan_records (estadísticas BI)**  
+   Formato CSV: Scan_ID, Fecha, Hora, Dia_Semana, Timestamp_Completo, EXPO, Tipo_Persona, Nombre, Empresa, Email, Telefono, Celular, Escaneo.  
+   Crear tabla: `https://TU_APP.vercel.app/api/setup-scan-records?token=TU_TOKEN` (usa base expo_tech_2026).
+
+4. **Cargar QR → país (lookup)**  
    Opción A: En la app, ve a **Ver bases de datos** → elige una expo → en "Subir CSV" introduce tu token y sube un CSV.  
    - **Expos normales:** columnas `qr_content,pais` (2 columnas).  
    - **Bases EXPOSITORES:** columnas `QR Content,País,Empresa` (3 columnas, en ese orden).  
    Opción B: Si tienes CSV en `data/qr-pais/` (EXPO_LOGISTICA.csv, EXPO_LOGISTICA_EXPOSITORES.csv, etc.), llama una vez a:  
    `https://TU_APP.vercel.app/api/admin/import-qr-pais-from-folder?token=TU_TOKEN`
 
-4. **Webhook en CodeREADr**  
+5. **Webhook en CodeREADr**  
    Configura la URL del webhook con `project` y `point`, por ejemplo:  
    `https://TU_APP.vercel.app/api/webhook/codereadr?token=TU_TOKEN&project=expo_logistica_2026&point=punto1`
 
-5. **Probar**  
+6. **Probar**  
    Entra en la app, abre **Ver bases de datos**, elige una expo y comprueba que ves estadísticas y, si subiste CSV, la tabla QR → país.
 
 ---

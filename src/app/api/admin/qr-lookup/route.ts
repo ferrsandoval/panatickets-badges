@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPrismaForProject } from "@/lib/prisma";
+import { upsertQrLookupRows } from "@/lib/qr-lookup-upsert";
+import { buildManualQrContent } from "@/lib/manual-qr";
 
 /**
  * GET /api/admin/qr-lookup?project=expo_logistica_2026
@@ -47,6 +49,66 @@ export async function GET(req: NextRequest) {
     const message = e instanceof Error ? e.message : String(e);
     return NextResponse.json(
       { error: "Error al leer la tabla QR → país", detail: message, project },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * POST /api/admin/qr-lookup
+ * Body JSON: { project, name, empresa?, pais }
+ * Crea/actualiza una fila manual en qr_country_lookup para reutilizarla luego en impresión.
+ */
+export async function POST(req: NextRequest) {
+  let body: { project?: string; name?: string; empresa?: string; pais?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
+  }
+
+  const project = body.project?.trim();
+  const name = body.name?.trim();
+  const empresa = body.empresa?.trim() ?? "";
+  const pais = body.pais?.trim();
+
+  if (!project) {
+    return NextResponse.json({ error: "Falta project" }, { status: 400 });
+  }
+  if (!name) {
+    return NextResponse.json({ error: "Falta name" }, { status: 400 });
+  }
+  if (!pais) {
+    return NextResponse.json({ error: "Falta pais" }, { status: 400 });
+  }
+
+  try {
+    const prisma = getPrismaForProject(project);
+    const qrContent = buildManualQrContent(
+      { name, empresa },
+      project.includes("expositores") ? "expositores" : "invitados"
+    );
+    await upsertQrLookupRows(prisma, [
+      {
+        qrContent,
+        pais,
+        empresa,
+      },
+    ]);
+    return NextResponse.json({
+      ok: true,
+      message: "Usuario manual guardado en QR lookup.",
+      project,
+      row: {
+        qrContent,
+        pais,
+        empresa: empresa || undefined,
+      },
+    });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return NextResponse.json(
+      { error: "Error al guardar usuario manual", detail: message },
       { status: 500 }
     );
   }
