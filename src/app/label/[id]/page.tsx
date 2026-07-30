@@ -140,9 +140,19 @@ export default function LabelPage() {
 
   useEffect(() => {
     if (!job) return;
-    const t = setTimeout(() => window.print(), 300);
+    const t = setTimeout(() => {
+      window.print();
+      // Avisa a la página que orquesta la cola (si estamos en su iframe) que
+      // window.print() ya se disparó con los datos reales, para que no marque
+      // "impreso" con un temporizador ciego antes de que esto ocurra.
+      try {
+        window.parent?.postMessage({ type: "panatickets:printed", id }, window.location.origin);
+      } catch {
+        // no-op: si no hay parent (ventana abierta directa), no aplica
+      }
+    }, 300);
     return () => clearTimeout(t);
-  }, [job]);
+  }, [job, id]);
 
   useEffect(() => {
     // Para Showare: usar acreditacion.qr si existe, sino el nombre

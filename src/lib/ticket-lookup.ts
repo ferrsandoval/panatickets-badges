@@ -7,10 +7,19 @@ export type TicketLookupRow = {
   tipoBoleto?: string | null;
 };
 
+const MAX_TICKET_ROWS = 5000;
+
+/** Quita ceros a la izquierda (pero conserva al menos un dígito). */
+function stripLeadingZeros(s: string): string {
+  return s.replace(/^0+(?=\d)/, "");
+}
+
 /**
- * Busca un boleto por coincidencia exacta del código de barras (QR).
- * A diferencia de qr_country_lookup, el QR aquí es un ID opaco (no texto
- * Nombre=...), así que no hace falta la normalización por candidatos.
+ * Busca un boleto por el código de barras (QR).
+ * Los códigos de esta base empiezan todos con cero, y algunos sistemas
+ * (Excel, el propio CodeREADr, el escáner) tratan el barcode como número y
+ * recortan esos ceros a la izquierda. Se intenta primero coincidencia
+ * exacta; si falla, se compara ignorando ceros a la izquierda en ambos lados.
  */
 export async function findTicketByQrContent(
   prisma: PrismaClient,
@@ -18,15 +27,30 @@ export async function findTicketByQrContent(
 ): Promise<TicketLookupRow | null> {
   const trimmed = qrContent.trim();
   if (!trimmed) return null;
+
   try {
-    const row = await prisma.ticketLookup.findUnique({
+    const exact = await prisma.ticketLookup.findUnique({
       where: { qrContent: trimmed },
       select: { qrContent: true, nombre: true, categoria: true, tipoBoleto: true },
     });
-    return row;
+    if (exact) return exact;
   } catch {
     return null;
   }
+
+  try {
+    const normalizedInput = stripLeadingZeros(trimmed);
+    const rows = await prisma.ticketLookup.findMany({
+      select: { qrContent: true, nombre: true, categoria: true, tipoBoleto: true },
+      take: MAX_TICKET_ROWS,
+    });
+    for (const row of rows) {
+      if (stripLeadingZeros(row.qrContent.trim()) === normalizedInput) return row;
+    }
+  } catch {
+    return null;
+  }
+  return null;
 }
 
 /** Inserta/actualiza filas en ticket_lookup. */

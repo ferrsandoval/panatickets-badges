@@ -110,6 +110,39 @@ function PrintQueueContent() {
     }
   };
 
+  // Cierra el job actual: marca impreso, limpia el iframe y refresca la cola.
+  // Se llama al confirmar por postMessage que window.print() ya se disparó
+  // (camino normal), o por el temporizador de respaldo si esa confirmación
+  // nunca llega (fallo de red, job no encontrado, etc.) para no atascar la cola.
+  const finishPrinting = async (job: QueuedPrintJob) => {
+    if (currentJobRef.current?.id !== job.id) return;
+    if (markPrintedTimeoutRef.current) {
+      window.clearTimeout(markPrintedTimeoutRef.current);
+      markPrintedTimeoutRef.current = null;
+    }
+    currentJobRef.current = null;
+    await markPrinted(job.projectKey, job.id);
+    isPrintingRef.current = false;
+    setCurrentlyPrinting(null);
+    if (printFrameRef.current) {
+      printFrameRef.current.src = "about:blank";
+    }
+    await fetchJobs();
+  };
+
+  useEffect(() => {
+    function handlePrintConfirmation(event: MessageEvent) {
+      if (event.origin !== window.location.origin) return;
+      const data = event.data as { type?: string; id?: string } | null;
+      if (!data || data.type !== "panatickets:printed" || !data.id) return;
+      const currentJob = currentJobRef.current;
+      if (!currentJob || currentJob.id !== data.id) return;
+      void finishPrinting(currentJob);
+    }
+    window.addEventListener("message", handlePrintConfirmation);
+    return () => window.removeEventListener("message", handlePrintConfirmation);
+  }, []);
+
   useEffect(() => {
     if (!currentPoint) return;
     if (isPrintingRef.current) return;
@@ -143,16 +176,13 @@ function PrintQueueContent() {
     const currentJob = currentJobRef.current;
     if (!currentJob) return;
 
-    markPrintedTimeoutRef.current = window.setTimeout(async () => {
-      await markPrinted(currentJob.projectKey, currentJob.id);
-      currentJobRef.current = null;
-      isPrintingRef.current = false;
-      setCurrentlyPrinting(null);
-      if (printFrameRef.current) {
-        printFrameRef.current.src = "about:blank";
-      }
-      await fetchJobs();
-    }, 1200);
+    // Red de seguridad: normalmente la etiqueta confirma por postMessage en
+    // cuanto dispara window.print(). Si esa confirmación no llega (job no
+    // encontrado, error de red, JS bloqueado), este temporizador evita que
+    // la cola se quede atascada esperando para siempre.
+    markPrintedTimeoutRef.current = window.setTimeout(() => {
+      void finishPrinting(currentJob);
+    }, 8000);
   };
 
   return (
