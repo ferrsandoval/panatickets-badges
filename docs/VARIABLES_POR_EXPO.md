@@ -24,20 +24,27 @@ Con tus variables actuales (las que terminan en `_DATABASE_URL`, etc.) la app ya
 
 ## Tabla para copiar y pegar (solo si creas variables a mano)
 
+> ⚠️ **Nunca escribas aquí URLs con usuario y contraseña reales.** Este repositorio es
+> público: todo lo que se commitee queda en el historial de git de forma permanente.
+> Los valores reales van solo en Vercel → Settings → Environment Variables.
+
+Puedes apuntar las 10 variables a **una sola instancia Postgres** usando un schema por
+expo (ver `docs/DEPLOY_VERCEL_SCHEMAS.md`), o a 10 bases separadas. El formato es el mismo:
+
 | Name | Value |
 |------|-------|
-| `DATABASE_URL_EXPO_LOGISTICA_2026` | `postgres://6c15115cf5b990aa76f9efe2746b61c8a05c07a62b1eb2cad2f8971f1fd10d3c:sk_4of8NBp6RYLVV2QDWe3xe@db.prisma.io:5432/postgres?sslmode=require` |
-| `DATABASE_URL_EXPO_TURISMO_2026` | `postgres://d6a96757bb43fcc4bc53f0b7e97b2700f8aff6f3f867a452ec393afa90eae09a:sk_LomFLoQx1CeU_ADqEci5P@db.prisma.io:5432/postgres?sslmode=require` |
-| `DATABASE_URL_EXPO_COMER_2026` | `postgres://f7781e2cb2287b79320777622a5c736663cdd6aa14ad7de27b4ec0d2f38c248e:sk_wZeIc_Uu0WfsJ5TqfC_4S@db.prisma.io:5432/postgres?sslmode=require` |
-| `DATABASE_URL_EXPO_TECH_2026` | `postgres://1c40a8bf13740b731310632fc3cd5d5fa21813b2d9aa168d675424e63f66ab7a:sk_vWszETqpQv4tYgM7OlgDf@db.prisma.io:5432/postgres?sslmode=require` |
-| `DATABASE_URL_EXPO_ELECTRONICA_2026` | `postgres://4ab617ad0627b263e76919a51a0d2a722c1dd4277f55b9d4ca30078631673006:sk_-oVc8jucleBsSqfAYhIc4@db.prisma.io:5432/postgres?sslmode=require` |
-| `DATABASE_URL_EXPO_LOGISTICA_EXPOSITORES_2026` | *(crear base en Prisma/Vercel y pegar URL)* |
-| `DATABASE_URL_EXPO_TURISMO_EXPOSITORES_2026` | *(crear base en Prisma/Vercel y pegar URL)* |
-| `DATABASE_URL_EXPO_COMER_EXPOSITORES_2026` | *(crear base en Prisma/Vercel y pegar URL)* |
-| `DATABASE_URL_EXPO_TECH_EXPOSITORES_2026` | *(crear base en Prisma/Vercel y pegar URL)* |
-| `DATABASE_URL_EXPO_ELECTRONICA_EXPOSITORES_2026` | *(crear base en Prisma/Vercel y pegar URL)* |
+| `DATABASE_URL_EXPO_LOGISTICA_2026` | `postgres://USUARIO:CLAVE@HOST/BASE?sslmode=require&schema=expo_logistica_2026` |
+| `DATABASE_URL_EXPO_TURISMO_2026` | `postgres://USUARIO:CLAVE@HOST/BASE?sslmode=require&schema=expo_turismo_2026` |
+| `DATABASE_URL_EXPO_COMER_2026` | `postgres://USUARIO:CLAVE@HOST/BASE?sslmode=require&schema=expo_comer_2026` |
+| `DATABASE_URL_EXPO_TECH_2026` | `postgres://USUARIO:CLAVE@HOST/BASE?sslmode=require&schema=expo_tech_2026` |
+| `DATABASE_URL_EXPO_ELECTRONICA_2026` | `postgres://USUARIO:CLAVE@HOST/BASE?sslmode=require&schema=expo_electronica_2026` |
+| `DATABASE_URL_EXPO_LOGISTICA_EXPOSITORES_2026` | `postgres://USUARIO:CLAVE@HOST/BASE?sslmode=require&schema=expo_logistica_expositores_2026` |
+| `DATABASE_URL_EXPO_TURISMO_EXPOSITORES_2026` | `postgres://USUARIO:CLAVE@HOST/BASE?sslmode=require&schema=expo_turismo_expositores_2026` |
+| `DATABASE_URL_EXPO_COMER_EXPOSITORES_2026` | `postgres://USUARIO:CLAVE@HOST/BASE?sslmode=require&schema=expo_comer_expositores_2026` |
+| `DATABASE_URL_EXPO_TECH_EXPOSITORES_2026` | `postgres://USUARIO:CLAVE@HOST/BASE?sslmode=require&schema=expo_tech_expositores_2026` |
+| `DATABASE_URL_EXPO_ELECTRONICA_EXPOSITORES_2026` | `postgres://USUARIO:CLAVE@HOST/BASE?sslmode=require&schema=expo_electronica_expositores_2026` |
 
-En Vercel, al crear cada variable, en **Value** pega solo la URL (la parte que está entre comillas en la tabla), **sin** las comillas. Para las 5 bases EXPOSITORES, crea una base Postgres nueva en Prisma/Vercel por cada una y usa su URL.
+En Vercel, al crear cada variable, en **Value** pega solo la URL, **sin** comillas.
 
 ### Variables con sufijo `_DATABASE_URL` (para .env local o referencia)
 

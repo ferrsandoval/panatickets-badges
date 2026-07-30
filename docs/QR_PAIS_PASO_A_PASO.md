@@ -56,7 +56,7 @@ Cuando alguien escanee ese mismo QR, en la etiqueta saldrá ese país.
    Ejemplo si tu archivo se llama `paises.csv`:
 
    ```powershell
-   curl.exe -X POST "https://panatickets-badges-4fkq.vercel.app/api/admin/upload-qr-pais-csv?token=c9f909336cd195eedaeb4c336ac6110ca43e1a0c8703cd6e57de9a71f8a72a47" -F "file=@paises.csv"
+   curl.exe -X POST "https://panatickets-badges-4fkq.vercel.app/api/admin/upload-qr-pais-csv?token=TU_WEBHOOK_SECRET" -F "file=@paises.csv"
    ```
 
 4. Si todo va bien verás algo como: `{"ok":true,"message":"CSV importado...","total":10}`.

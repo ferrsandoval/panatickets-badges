@@ -1,13 +1,20 @@
 # Prueba del webhook en localhost
-# Uso: .\scripts\test-webhook.ps1   o   .\scripts\test-webhook.ps1 -Count 3
+# Uso: $env:WEBHOOK_SECRET = "..."; .\scripts\test-webhook.ps1   o   .\scripts\test-webhook.ps1 -Count 3
+# El token NO se guarda en el repositorio: se lee de la variable de entorno WEBHOOK_SECRET.
 
 param(
-    [int]$Count = 1
+    [int]$Count = 1,
+    [string]$Project = "expo_logistica_2026",
+    [string]$Point = "punto1"
 )
 
 $baseUrl = "http://localhost:3000/api/webhook/codereadr"
-$token = "c9f909336cd195eedaeb4c336ac6110ca43e1a0c8703cd6e57de9a71f8a72a47"
-$uri = "${baseUrl}?token=$token"
+$token = $env:WEBHOOK_SECRET
+if (-not $token) {
+    Write-Host "Falta WEBHOOK_SECRET. Ejecuta antes:  `$env:WEBHOOK_SECRET = 'tu_token'"
+    exit 1
+}
+$uri = "${baseUrl}?project=$Project&point=$Point&token=$token"
 
 $samplePayload = @"
 Name: Itzel Ortega

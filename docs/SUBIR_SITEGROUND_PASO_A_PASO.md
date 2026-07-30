@@ -76,7 +76,7 @@ En tu PC ya debes tener la carpeta **`.next\standalone`** lista (si no, en la ra
 
     | Nombre           | Valor |
     |------------------|-------|
-    | `WEBHOOK_SECRET` | `c9f909336cd195eedaeb4c336ac6110ca43e1a0c8703cd6e57de9a71f8a72a47` |
+    | `WEBHOOK_SECRET` | `TU_WEBHOOK_SECRET` |
     | `DATABASE_URL`   | `file:./prisma/dev.db` |
 
 21. Guarda los cambios.
@@ -89,7 +89,7 @@ En tu PC ya debes tener la carpeta **`.next\standalone`** lista (si no, en la ra
 23. Pulsa **Start Application** (Iniciar aplicación) o **Restart** si ya estaba creada.
 24. Abre en el navegador la **Application URL** que configuraste (ej. https://fernandodejesuss2.sg-host.com/). Deberías ver la cola de impresión.
 25. Prueba el webhook:  
-    `https://fernandodejesuss2.sg-host.com/api/webhook/codereadr?token=c9f909336cd195eedaeb4c336ac6110ca43e1a0c8703cd6e57de9a71f8a72a47`  
+    `https://fernandodejesuss2.sg-host.com/api/webhook/codereadr?token=TU_WEBHOOK_SECRET`  
     (con un POST de prueba; si responde 201 o 200, está bien).
 
 ---

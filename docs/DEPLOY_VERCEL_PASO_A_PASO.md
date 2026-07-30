@@ -65,7 +65,7 @@ git push -u origin main
 1. En el proyecto, ve a **Settings** → **Environment Variables** (Variables de entorno).
 2. Añade una variable:
    - **Name:** `WEBHOOK_SECRET`
-   - **Value:** `c9f909336cd195eedaeb4c336ac6110ca43e1a0c8703cd6e57de9a71f8a72a47`
+   - **Value:** `TU_WEBHOOK_SECRET`
    - **Environment:** marca **Production**, **Preview** y **Development**.
 3. Guarda (**Save**).  
    (La variable **`DATABASE_URL`** ya debería estar si conectaste la base en el paso 4.)
@@ -104,7 +104,7 @@ git push -u origin main
 Cuando el dominio esté conectado, en CodeREADr usa esta **Postback URL**:
 
 ```
-https://fernandodejesuss2.sg-host.com/api/webhook/codereadr?token=c9f909336cd195eedaeb4c336ac6110ca43e1a0c8703cd6e57de9a71f8a72a47
+https://fernandodejesuss2.sg-host.com/api/webhook/codereadr?token=TU_WEBHOOK_SECRET
 ```
 
 (Si usas otra URL de Vercel antes de conectar el dominio, sería algo como `https://panatickets-badges-xxx.vercel.app/api/webhook/codereadr?token=...`.)

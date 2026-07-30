@@ -39,7 +39,7 @@ Eso hace `next build` y luego copia `.next/static`, `public` (si existe) y `pris
 3. **Application URL:** tu dominio o subdominio (ej. `fernandodejesuss2.sg-host.com`).
 4. **Application startup file:** `server.js` (Next standalone genera este archivo en la raíz).
 5. **Variables de entorno:** añade:
-   - `WEBHOOK_SECRET` = `c9f909336cd195eedaeb4c336ac6110ca43e1a0c8703cd6e57de9a71f8a72a47`
+   - `WEBHOOK_SECRET` = `TU_WEBHOOK_SECRET`
    - `DATABASE_URL` = `file:./prisma/dev.db` (la app corre desde la raíz donde está `server.js`; la DB se crea en `prisma/dev.db`).
    Si SiteGround pide PORT, suele ser `3000` o el que asigne el panel.
 6. **Node version:** 18.x o 20.x.
@@ -77,7 +77,7 @@ En **Setup Node.js App** → tu aplicación → **Environment variables** (o "Va
 
 | Name            | Value                                                                 |
 |-----------------|-----------------------------------------------------------------------|
-| WEBHOOK_SECRET  | c9f909336cd195eedaeb4c336ac6110ca43e1a0c8703cd6e57de9a71f8a72a47     |
+| WEBHOOK_SECRET  | TU_WEBHOOK_SECRET     |
 | DATABASE_URL    | file:./prisma/dev.db                                                 |
 
 ---
@@ -86,7 +86,7 @@ En **Setup Node.js App** → tu aplicación → **Environment variables** (o "Va
 
 - **Webapp:** https://fernandodejesuss2.sg-host.com/
 - **Webhook CodeREADr:**  
-  `https://fernandodejesuss2.sg-host.com/api/webhook/codereadr?token=c9f909336cd195eedaeb4c336ac6110ca43e1a0c8703cd6e57de9a71f8a72a47`
+  `https://fernandodejesuss2.sg-host.com/api/webhook/codereadr?token=TU_WEBHOOK_SECRET`
 
 ---
 

@@ -19,6 +19,7 @@ model PrintJob {
   telefono    String?   @map("telefono")
   email       String?   @map("email")
   rawPayload  String?   @map("raw_payload")
+  source      String?   @map("source")
   printedAt   DateTime? @map("printed_at")
   createdAt   DateTime  @default(now()) @map("created_at")
 

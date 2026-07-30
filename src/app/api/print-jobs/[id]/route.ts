@@ -55,7 +55,7 @@ export async function GET(
   const { id } = await params;
   const { searchParams } = new URL(req.url);
   const project = searchParams.get("project");
-  type JobRow = { id: string; name: string; empresa?: string | null; telefono?: string | null; pais?: string | null; rawPayload?: string | null; createdAt: Date; printedAt: Date | null };
+  type JobRow = { id: string; name: string; empresa?: string | null; telefono?: string | null; pais?: string | null; rawPayload?: string | null; source?: string | null; createdAt: Date; printedAt: Date | null };
   let job: JobRow | null = null;
   let lookupDebug: LookupDebug | null = null;
 
@@ -64,29 +64,30 @@ export async function GET(
     try {
       job = await prisma.printJob.findUnique({
         where: { id },
-        select: { id: true, name: true, empresa: true, telefono: true, pais: true, rawPayload: true, createdAt: true, printedAt: true },
+        select: { id: true, name: true, empresa: true, telefono: true, pais: true, rawPayload: true, source: true, createdAt: true, printedAt: true },
       });
-      job = hydrateJobFieldsFromRawPayload(job);
+      if (job?.source !== "showare") job = hydrateJobFieldsFromRawPayload(job);
     } catch {
       try {
         job = await prisma.printJob.findUnique({
           where: { id },
           select: { id: true, name: true, empresa: true, pais: true, rawPayload: true, createdAt: true, printedAt: true },
         });
-        if (job) job = hydrateJobFieldsFromRawPayload({ ...job, telefono: null });
+        if (job) job = hydrateJobFieldsFromRawPayload({ ...job, telefono: null, source: null });
       } catch {
         job = await prisma.printJob.findUnique({
           where: { id },
           select: { id: true, name: true, empresa: true, pais: true, rawPayload: true, createdAt: true, printedAt: true },
         });
-        if (job) job = hydrateJobFieldsFromRawPayload({ ...job, telefono: null });
+        if (job) job = hydrateJobFieldsFromRawPayload({ ...job, telefono: null, source: null });
       }
     }
-    if (job) {
-    const result = await enrichPaisFromLookup(job, prisma);
-    job = result.job;
-    lookupDebug = result.debug;
-  }
+    // El lookup QR→país solo aplica para jobs de CodeREADr
+    if (job && job.source !== "showare") {
+      const result = await enrichPaisFromLookup(job, prisma);
+      job = result.job;
+      lookupDebug = result.debug;
+    }
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     return NextResponse.json({ error: "Database error", detail: message }, { status: 500 });
@@ -100,6 +101,7 @@ export async function GET(
     telefono: job.telefono ?? null,
     pais: job.pais ?? null,
     rawPayload: job.rawPayload ?? null,
+    source: job.source ?? null,
     createdAt: job.createdAt,
     printedAt: job.printedAt,
     debugLookup: lookupDebug ?? undefined,

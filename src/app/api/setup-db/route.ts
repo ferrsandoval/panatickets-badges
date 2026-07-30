@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPrismaForProject } from "@/lib/prisma";
+import {
+  getPrismaForProject,
+  getSchemaFromDatabaseUrl,
+  resolveDatabaseUrlForProject,
+} from "@/lib/prisma";
 
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 
@@ -27,6 +31,13 @@ export async function GET(req: NextRequest) {
 
   try {
     const prisma = getPrismaForProject(project);
+
+    // Varias expos pueden compartir una instancia Postgres con un schema por expo.
+    // Las tablas se crean sin cualificar, así que el schema debe existir antes.
+    const schema = getSchemaFromDatabaseUrl(resolveDatabaseUrlForProject(project));
+    if (schema) {
+      await prisma.$executeRawUnsafe(`CREATE SCHEMA IF NOT EXISTS "${schema.replace(/"/g, '""')}";`);
+    }
 
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "print_jobs" (
@@ -57,6 +68,7 @@ export async function GET(req: NextRequest) {
     await prisma.$executeRawUnsafe(`ALTER TABLE "print_jobs" ADD COLUMN IF NOT EXISTS "feria" TEXT;`);
     await prisma.$executeRawUnsafe(`ALTER TABLE "print_jobs" ADD COLUMN IF NOT EXISTS "telefono" TEXT;`);
     await prisma.$executeRawUnsafe(`ALTER TABLE "print_jobs" ADD COLUMN IF NOT EXISTS "email" TEXT;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "print_jobs" ADD COLUMN IF NOT EXISTS "source" TEXT;`);
 
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "qr_country_lookup" (
@@ -77,6 +89,7 @@ export async function GET(req: NextRequest) {
       ok: true,
       message: `Tablas print_jobs y qr_country_lookup creadas/actualizadas para el proyecto "${project}".`,
       project,
+      schema: schema ?? "public (por defecto)",
     });
   } catch (e) {
     console.error("setup-db error", e);

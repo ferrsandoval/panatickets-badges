@@ -1,5 +1,25 @@
-# Copiar estas líneas en las variables de entorno del servidor (SiteGround).
-# No incluyas el # ni esta explicación.
+# Plantilla de variables de entorno para producción (Vercel).
+# NO pongas valores reales en este archivo: el repositorio es público y todo
+# lo que se commitee aquí queda en el historial de git para siempre.
+# Los valores reales van en Vercel → Settings → Environment Variables.
 
-WEBHOOK_SECRET=c9f909336cd195eedaeb4c336ac6110ca43e1a0c8703cd6e57de9a71f8a72a47
-DATABASE_URL=file:./prisma/dev.db
+# Token de administración. Protege /api/setup-db, /api/admin/upload-qr-pais-csv
+# y /api/admin/clear-qr-lookup (este último BORRA la tabla QR→país entera).
+# Genera uno nuevo con:  node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+WEBHOOK_SECRET=<generar_uno_nuevo>
+
+# Base por defecto (solo se usa si una expo no tiene su propia variable).
+DATABASE_URL=postgres://USUARIO:CLAVE@HOST/BASE?sslmode=require
+
+# Una variable por expo. Pueden apuntar todas a la MISMA instancia Postgres
+# usando un schema distinto por expo (?schema=...). Ver docs/DEPLOY_VERCEL_SCHEMAS.md
+DATABASE_URL_EXPO_LOGISTICA_2026=postgres://USUARIO:CLAVE@HOST/BASE?sslmode=require&schema=expo_logistica_2026
+DATABASE_URL_EXPO_TURISMO_2026=postgres://USUARIO:CLAVE@HOST/BASE?sslmode=require&schema=expo_turismo_2026
+DATABASE_URL_EXPO_COMER_2026=postgres://USUARIO:CLAVE@HOST/BASE?sslmode=require&schema=expo_comer_2026
+DATABASE_URL_EXPO_TECH_2026=postgres://USUARIO:CLAVE@HOST/BASE?sslmode=require&schema=expo_tech_2026
+DATABASE_URL_EXPO_ELECTRONICA_2026=postgres://USUARIO:CLAVE@HOST/BASE?sslmode=require&schema=expo_electronica_2026
+DATABASE_URL_EXPO_LOGISTICA_EXPOSITORES_2026=postgres://USUARIO:CLAVE@HOST/BASE?sslmode=require&schema=expo_logistica_expositores_2026
+DATABASE_URL_EXPO_TURISMO_EXPOSITORES_2026=postgres://USUARIO:CLAVE@HOST/BASE?sslmode=require&schema=expo_turismo_expositores_2026
+DATABASE_URL_EXPO_COMER_EXPOSITORES_2026=postgres://USUARIO:CLAVE@HOST/BASE?sslmode=require&schema=expo_comer_expositores_2026
+DATABASE_URL_EXPO_TECH_EXPOSITORES_2026=postgres://USUARIO:CLAVE@HOST/BASE?sslmode=require&schema=expo_tech_expositores_2026
+DATABASE_URL_EXPO_ELECTRONICA_EXPOSITORES_2026=postgres://USUARIO:CLAVE@HOST/BASE?sslmode=require&schema=expo_electronica_expositores_2026

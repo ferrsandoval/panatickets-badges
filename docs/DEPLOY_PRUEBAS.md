@@ -2,7 +2,7 @@
 
 **Dominio:** https://fernandodejesuss2.sg-host.com/
 
-Token generado (único para este entorno): `c9f909336cd195eedaeb4c336ac6110ca43e1a0c8703cd6e57de9a71f8a72a47`
+Token generado (único para este entorno): `TU_WEBHOOK_SECRET`
 
 ---
 
@@ -11,7 +11,7 @@ Token generado (único para este entorno): `c9f909336cd195eedaeb4c336ac6110ca43e
 **Postback URL** (pégala tal cual en CodeREADr):
 
 ```
-https://fernandodejesuss2.sg-host.com/api/webhook/codereadr?token=c9f909336cd195eedaeb4c336ac6110ca43e1a0c8703cd6e57de9a71f8a72a47
+https://fernandodejesuss2.sg-host.com/api/webhook/codereadr?token=TU_WEBHOOK_SECRET
 ```
 
 ---
@@ -21,7 +21,7 @@ https://fernandodejesuss2.sg-host.com/api/webhook/codereadr?token=c9f909336cd195
 En el panel del hosting (cPanel, variables de entorno, etc.) define **exactamente**:
 
 ```
-WEBHOOK_SECRET=c9f909336cd195eedaeb4c336ac6110ca43e1a0c8703cd6e57de9a71f8a72a47
+WEBHOOK_SECRET=TU_WEBHOOK_SECRET
 ```
 
 ---
@@ -31,7 +31,7 @@ WEBHOOK_SECRET=c9f909336cd195eedaeb4c336ac6110ca43e1a0c8703cd6e57de9a71f8a72a47
 | Uso | URL |
 |-----|-----|
 | Cola de impresión (webapp) | https://fernandodejesuss2.sg-host.com/ |
-| Webhook (ya con token) | https://fernandodejesuss2.sg-host.com/api/webhook/codereadr?token=c9f909336cd195eedaeb4c336ac6110ca43e1a0c8703cd6e57de9a71f8a72a47 |
+| Webhook (ya con token) | https://fernandodejesuss2.sg-host.com/api/webhook/codereadr?token=TU_WEBHOOK_SECRET |
 | Etiqueta | https://fernandodejesuss2.sg-host.com/label/ID_DEL_JOB |
 
 ---
@@ -53,7 +53,7 @@ La app usa SQLite (`prisma/dev.db`). El directorio `prisma/` debe ser escribible
 ## 5. Probar el webhook (curl)
 
 ```bash
-curl -X POST "https://fernandodejesuss2.sg-host.com/api/webhook/codereadr?token=c9f909336cd195eedaeb4c336ac6110ca43e1a0c8703cd6e57de9a71f8a72a47" -H "Content-Type: application/x-www-form-urlencoded" -d "scan_id=prueba-001&barcode_data=Name: Itzel Ortega%0ACompany: Test"
+curl -X POST "https://TU_APP.vercel.app/api/webhook/codereadr?project=expo_logistica_2026&point=punto1&token=TU_WEBHOOK_SECRET" -H "Content-Type: application/x-www-form-urlencoded" -d "scan_id=prueba-001&barcode_data=Name: Itzel Ortega%0ACompany: Test"
 ```
 
 Respuesta esperada: `201` y `{"ok":true,"id":"..."}`.
