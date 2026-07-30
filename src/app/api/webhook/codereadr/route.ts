@@ -106,10 +106,14 @@ export async function POST(req: NextRequest) {
   const point = authorizedPoint ?? pointFromQuery ?? undefined;
   const qrText = getQrTextFromBody(body);
 
-  if (userId && !authorizedPoint) {
+  // Si el User ID no está en la lista fija de escáneres autorizados, se acepta
+  // igual siempre que la URL traiga ?point=... explícito (evita tener que
+  // cablear cada dispositivo nuevo en AUTHORIZED_POINT_BY_USER_ID).
+  if (userId && !authorizedPoint && !pointFromQuery) {
     return NextResponse.json(
       {
         error: "Dispositivo no autorizado",
+        detail: "Agrega ?point=punto1 (o el punto correspondiente) en la URL del webhook para este dispositivo.",
         receivedUserId: userId,
       },
       { status: 403 }
