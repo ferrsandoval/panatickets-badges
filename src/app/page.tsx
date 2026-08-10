@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 
 type PrintJob = {
   id: string;
@@ -11,18 +11,12 @@ type PrintJob = {
   printedAt: string | null;
 };
 
-// Prueba de venta a cliente: un solo proyecto (boletos), sin selector de expos.
-const PROJECTS = [{ key: "expo_logistica_2026", label: "Boletos" }] as const;
-
 const POINTS = [
   { key: "punto1", label: "Punto 1" },
   { key: "punto2", label: "Punto 2" },
   { key: "punto3", label: "Punto 3" },
   { key: "punto4", label: "Punto 4" },
 ] as const;
-
-type JobsByProject = Record<string, PrintJob[]>;
-type QueuedPrintJob = PrintJob & { projectKey: string; projectLabel: string };
 
 export default function PrintQueuePage() {
   return (
@@ -34,42 +28,32 @@ export default function PrintQueuePage() {
 
 function PrintQueueContent() {
   const searchParams = useSearchParams();
-  const [jobsByProject, setJobsByProject] = useState<JobsByProject>({});
+  const [jobs, setJobs] = useState<PrintJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentlyPrinting, setCurrentlyPrinting] = useState<string | null>(null);
   const printFrameRef = useRef<HTMLIFrameElement | null>(null);
   const isPrintingRef = useRef(false);
-  const currentJobRef = useRef<QueuedPrintJob | null>(null);
+  const currentJobRef = useRef<PrintJob | null>(null);
   const markPrintedTimeoutRef = useRef<number | null>(null);
 
-  const projectLabelByKey = useMemo(
-    () => Object.fromEntries(PROJECTS.map((project) => [project.key, project.label])),
-    []
-  );
   const currentPoint = searchParams.get("point")?.trim() || null;
   const currentPointLabel =
     POINTS.find((point) => point.key === currentPoint)?.label ?? currentPoint;
 
   const fetchJobs = async () => {
-    setLoading((prev) => prev && Object.keys(jobsByProject).length === 0);
+    setLoading((prev) => prev && jobs.length === 0);
     setError(null);
     try {
-      const results = await Promise.all(
-        PROJECTS.map(async ({ key }) => {
-          const url = new URL("/api/print-jobs", window.location.origin);
-          url.searchParams.set("printed", "false");
-          url.searchParams.set("project", key);
-          if (currentPoint) {
-            url.searchParams.set("point", currentPoint);
-          }
-          const res = await fetch(url.toString());
-          if (!res.ok) throw new Error(res.statusText);
-          const data = (await res.json()) as PrintJob[];
-          return [key, data] as const;
-        })
-      );
-      setJobsByProject(Object.fromEntries(results));
+      const url = new URL("/api/print-jobs", window.location.origin);
+      url.searchParams.set("printed", "false");
+      if (currentPoint) {
+        url.searchParams.set("point", currentPoint);
+      }
+      const res = await fetch(url.toString());
+      if (!res.ok) throw new Error(res.statusText);
+      const data = (await res.json()) as PrintJob[];
+      setJobs(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error al cargar");
     } finally {
@@ -88,10 +72,9 @@ function PrintQueueContent() {
     };
   }, [currentPoint]);
 
-  const markPrinted = async (projectKey: string, id: string) => {
+  const markPrinted = async (id: string) => {
     try {
       const url = new URL(`/api/print-jobs/${id}`, window.location.origin);
-      url.searchParams.set("project", projectKey);
       if (currentPoint) {
         url.searchParams.set("point", currentPoint);
       }
@@ -101,10 +84,7 @@ function PrintQueueContent() {
         body: JSON.stringify({ printed: true }),
       });
       if (!res.ok) throw new Error(res.statusText);
-      setJobsByProject((prev) => ({
-        ...prev,
-        [projectKey]: (prev[projectKey] ?? []).filter((j) => j.id !== id),
-      }));
+      setJobs((prev) => prev.filter((j) => j.id !== id));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error al marcar");
     }
@@ -114,14 +94,14 @@ function PrintQueueContent() {
   // Se llama al confirmar por postMessage que window.print() ya se disparó
   // (camino normal), o por el temporizador de respaldo si esa confirmación
   // nunca llega (fallo de red, job no encontrado, etc.) para no atascar la cola.
-  const finishPrinting = async (job: QueuedPrintJob) => {
+  const finishPrinting = async (job: PrintJob) => {
     if (currentJobRef.current?.id !== job.id) return;
     if (markPrintedTimeoutRef.current) {
       window.clearTimeout(markPrintedTimeoutRef.current);
       markPrintedTimeoutRef.current = null;
     }
     currentJobRef.current = null;
-    await markPrinted(job.projectKey, job.id);
+    await markPrinted(job.id);
     isPrintingRef.current = false;
     setCurrentlyPrinting(null);
     if (printFrameRef.current) {
@@ -147,30 +127,23 @@ function PrintQueueContent() {
     if (!currentPoint) return;
     if (isPrintingRef.current) return;
 
-    const nextJob = Object.entries(jobsByProject)
-      .flatMap(([projectKey, jobs]) =>
-        (jobs ?? []).map((job) => ({
-          ...job,
-          projectKey,
-          projectLabel: projectLabelByKey[projectKey] ?? projectKey,
-        }))
-      )
-      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())[0];
+    const nextJob = [...jobs].sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    )[0];
 
     if (!nextJob || !printFrameRef.current) return;
 
     isPrintingRef.current = true;
     currentJobRef.current = nextJob;
-    setCurrentlyPrinting(`${nextJob.projectLabel}: ${nextJob.name}`);
+    setCurrentlyPrinting(nextJob.name);
     const labelUrl = new URL(`/label/${nextJob.id}`, window.location.origin);
-    labelUrl.searchParams.set("project", nextJob.projectKey);
     labelUrl.searchParams.set("autoprint", "1");
     labelUrl.searchParams.set("t", String(Date.now()));
     if (currentPoint) {
       labelUrl.searchParams.set("point", currentPoint);
     }
     printFrameRef.current.src = labelUrl.toString();
-  }, [currentPoint, jobsByProject, projectLabelByKey]);
+  }, [currentPoint, jobs]);
 
   const handlePrintFrameLoad = () => {
     const currentJob = currentJobRef.current;
@@ -306,51 +279,36 @@ function PrintQueueContent() {
         </p>
       )}
 
-      {loading && Object.values(jobsByProject).every((list) => (list ?? []).length === 0) ? (
+      {loading && jobs.length === 0 ? (
         <p>Cargando…</p>
       ) : (
-        <div
+        <section
           style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-            gap: "1.5rem",
+            border: "1px solid #334155",
+            borderRadius: 8,
+            padding: "0.75rem",
+            background: "#020617",
           }}
         >
-          {PROJECTS.map(({ key, label }) => {
-            const jobs = jobsByProject[key] ?? [];
-            return (
-              <section
-                key={key}
-                style={{
-                  border: "1px solid #334155",
-                  borderRadius: 8,
-                  padding: "0.75rem",
-                  background: "#020617",
-                }}
-              >
-                <h2 style={{ fontSize: "1rem", marginBottom: "0.5rem" }}>{label}</h2>
-                {jobs.length === 0 ? (
-                  <p style={{ color: "#64748b", fontSize: "0.875rem" }}>No hay etiquetas pendientes.</p>
-                ) : (
-                  <ul style={{ listStyle: "none", margin: 0, padding: 0, fontSize: "0.875rem" }}>
-                    {jobs.map((job) => (
-                      <li
-                        key={job.id}
-                        style={{
-                          borderBottom: "1px solid #1e293b",
-                          padding: "0.5rem 0.4rem",
-                          color: currentJobRef.current?.id === job.id ? "#38bdf8" : "#e2e8f0",
-                        }}
-                      >
-                        {job.name}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </section>
-            );
-          })}
-        </div>
+          {jobs.length === 0 ? (
+            <p style={{ color: "#64748b", fontSize: "0.875rem" }}>No hay etiquetas pendientes.</p>
+          ) : (
+            <ul style={{ listStyle: "none", margin: 0, padding: 0, fontSize: "0.875rem" }}>
+              {jobs.map((job) => (
+                <li
+                  key={job.id}
+                  style={{
+                    borderBottom: "1px solid #1e293b",
+                    padding: "0.5rem 0.4rem",
+                    color: currentJobRef.current?.id === job.id ? "#38bdf8" : "#e2e8f0",
+                  }}
+                >
+                  {job.name}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       )}
       <iframe
         ref={printFrameRef}

@@ -8,9 +8,9 @@ import {
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 
 /**
- * GET /api/setup-db?token=WEBHOOK_SECRET&project=expo_logistica_2026
- * Crea print_jobs y qr_country_lookup en la base de ese proyecto (expo).
- * Obligatorio: project = key de la expo. Llama una vez por cada expo.
+ * GET /api/setup-db?token=WEBHOOK_SECRET
+ * Crea print_jobs, qr_country_lookup y ticket_lookup en la base por defecto
+ * (schema "public" de DATABASE_URL). No hace falta ningún nombre de proyecto.
  */
 export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get("token");
@@ -18,25 +18,17 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const project = req.nextUrl.searchParams.get("project")?.trim();
-  if (!project) {
-    return NextResponse.json(
-      {
-        error: "Falta project",
-        detail: "Añade ?project=expo_logistica_2026 (o expo_turismo_2026, expo_comer_2026, expo_tech_2026, expo_electronica_2026, expo_*_expositores_2026).",
-      },
-      { status: 400 }
-    );
-  }
+  const project = req.nextUrl.searchParams.get("project")?.trim() || undefined;
 
   try {
     const prisma = getPrismaForProject(project);
 
-    // Varias expos pueden compartir una instancia Postgres con un schema por expo.
     // El SQL crudo (`$executeRawUnsafe`) NO respeta el ?schema= de la URL —solo lo
     // respetan las consultas que genera el propio Prisma Client—, así que cada tabla
     // debe cualificarse explícitamente con el schema o todo cae en "public".
-    const schema = getSchemaFromDatabaseUrl(resolveDatabaseUrlForProject(project)) ?? "public";
+    const schema = project
+      ? getSchemaFromDatabaseUrl(resolveDatabaseUrlForProject(project)) ?? "public"
+      : "public";
     const s = schema.replace(/"/g, '""');
     if (schema !== "public") {
       await prisma.$executeRawUnsafe(`CREATE SCHEMA IF NOT EXISTS "${s}";`);

@@ -131,16 +131,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (!project?.trim()) {
-    return NextResponse.json(
-      {
-        error: "Falta el proyecto (expo)",
-        detail: "Agrega ?project=expo_logistica_2026 (o la key de la expo) en la URL del webhook.",
-      },
-      { status: 400 }
-    );
-  }
-
   const projectPrisma = getPrismaForProject(project);
 
   // Boletos: el QR es un código de barras opaco (sin "Nombre="/"Name=" embebido).
