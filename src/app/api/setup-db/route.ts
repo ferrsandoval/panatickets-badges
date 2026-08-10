@@ -97,7 +97,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      message: `Tablas print_jobs, qr_country_lookup y ticket_lookup creadas/actualizadas para el proyecto "${project}".`,
+      message: `Tablas print_jobs, qr_country_lookup y ticket_lookup creadas/actualizadas${project ? ` para el proyecto "${project}"` : " en la base por defecto"}.`,
       project,
       schema,
     });
