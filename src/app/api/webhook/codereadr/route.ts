@@ -58,10 +58,14 @@ function getQrTextFromBody(body: Record<string, unknown>): string {
   ];
   for (const k of knownKeys) {
     const v = body[k];
-    if (typeof v === "string" && v.length >= 15) return v.trim();
+    // Sin mínimo de longitud aquí: el nombre de la clave ya es suficiente
+    // garantía (a diferencia del loop de abajo, que barre claves desconocidas).
+    // Boletos como CodeREADr Barcode=10007 son válidos y bastante más cortos
+    // que el formato viejo Nombre='...'|Empresa='...'.
+    if (typeof v === "string" && v.trim().length > 0) return v.trim();
     if (v && typeof v === "object" && !Array.isArray(v)) {
       const inner = getQrTextFromBody(v as Record<string, unknown>);
-      if (inner.length >= 15) return inner;
+      if (inner.length > 0) return inner;
     }
   }
   for (const v of Object.values(body)) {
