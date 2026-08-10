@@ -87,6 +87,8 @@ export async function GET(req: NextRequest) {
         "nombre" TEXT NOT NULL,
         "categoria" TEXT,
         "tipo_boleto" TEXT,
+        "telefono" TEXT,
+        "email" TEXT,
         "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         CONSTRAINT "ticket_lookup_pkey" PRIMARY KEY ("id")
       );
@@ -94,6 +96,8 @@ export async function GET(req: NextRequest) {
     await prisma.$executeRawUnsafe(`
       CREATE UNIQUE INDEX IF NOT EXISTS "ticket_lookup_qr_content_key" ON "${s}"."ticket_lookup"("qr_content");
     `);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "${s}"."ticket_lookup" ADD COLUMN IF NOT EXISTS "telefono" TEXT;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "${s}"."ticket_lookup" ADD COLUMN IF NOT EXISTS "email" TEXT;`);
 
     return NextResponse.json({
       ok: true,

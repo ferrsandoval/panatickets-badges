@@ -5,11 +5,11 @@ import { parseTicketCsvText, upsertTicketLookupRows } from "@/lib/ticket-lookup"
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 
 /**
- * POST /api/admin/upload-ticket-lookup-csv?token=WEBHOOK_SECRET&project=expo_logistica_2026
- * Body: CSV de venta de boletos (12 columnas; separador ; y salto de fila
- * \r, \n o \r\n). Solo se usan columna 1 (QR/barcode), 2 (nombre), 3
- * (categoría) y 10 (tipo de boleto); el resto se ignora.
- * Inserta/actualiza ticket_lookup en la base de esa expo.
+ * POST /api/admin/upload-ticket-lookup-csv?token=WEBHOOK_SECRET
+ * Body: CSV de boletos. Dos formatos aceptados (ver parseTicketCsvText):
+ * - Simple, con cabecera, cualquier orden: ej. "QR,Nombre,Empresa,Telefono,Mail".
+ * - Legado: 12 columnas separadas por ";" (solo usa columnas 1, 2, 3 y 10).
+ * Inserta/actualiza ticket_lookup en la base por defecto (o la de ?project= si se indica).
  */
 export async function POST(req: NextRequest) {
   const token = req.nextUrl.searchParams.get("token");
@@ -17,13 +17,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const project = req.nextUrl.searchParams.get("project")?.trim();
-  if (!project) {
-    return NextResponse.json(
-      { error: "Falta project", detail: "Añade ?project=expo_logistica_2026 (u otra expo)." },
-      { status: 400 }
-    );
-  }
+  const project = req.nextUrl.searchParams.get("project")?.trim() || undefined;
 
   let text: string;
   const contentType = req.headers.get("content-type") ?? "";
@@ -51,8 +45,8 @@ export async function POST(req: NextRequest) {
     await upsertTicketLookupRows(prisma, rows);
     return NextResponse.json({
       ok: true,
-      message: `CSV de boletos importado a ticket_lookup del proyecto "${project}".`,
-      project,
+      message: `CSV de boletos importado a ticket_lookup${project ? ` del proyecto "${project}"` : " (base por defecto)"}.`,
+      project: project ?? null,
       total: rows.length,
     });
   } catch (e) {
@@ -65,8 +59,8 @@ export async function POST(req: NextRequest) {
 }
 
 /**
- * DELETE /api/admin/upload-ticket-lookup-csv?token=WEBHOOK_SECRET&project=expo_logistica_2026
- * Borra todas las filas de ticket_lookup de la base del proyecto indicado.
+ * DELETE /api/admin/upload-ticket-lookup-csv?token=WEBHOOK_SECRET
+ * Borra todas las filas de ticket_lookup de la base por defecto (o la de ?project= si se indica).
  */
 export async function DELETE(req: NextRequest) {
   const token = req.nextUrl.searchParams.get("token");
@@ -74,25 +68,19 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const project = req.nextUrl.searchParams.get("project")?.trim();
-  if (!project) {
-    return NextResponse.json(
-      { error: "Falta project", detail: "Añade ?project=expo_logistica_2026 (u otra expo)." },
-      { status: 400 }
-    );
-  }
+  const project = req.nextUrl.searchParams.get("project")?.trim() || undefined;
 
   try {
     const prisma = getPrismaForProject(project);
     const result = await prisma.ticketLookup.deleteMany({});
     return NextResponse.json({
       ok: true,
-      message: `Se borraron ${result.count} filas de ticket_lookup en "${project}".`,
-      project,
+      message: `Se borraron ${result.count} filas de ticket_lookup${project ? ` en "${project}"` : ""}.`,
+      project: project ?? null,
       deleted: result.count,
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
-    return NextResponse.json({ error: "Error al borrar", detail: message, project }, { status: 500 });
+    return NextResponse.json({ error: "Error al borrar", detail: message, project: project ?? null }, { status: 500 });
   }
 }

@@ -74,6 +74,8 @@ model TicketLookup {
   nombre      String   @map("nombre")
   categoria   String?  @map("categoria")
   tipoBoleto  String?  @map("tipo_boleto")
+  telefono    String?  @map("telefono")
+  email       String?  @map("email")
   createdAt   DateTime @default(now()) @map("created_at")
 
   @@map("ticket_lookup")

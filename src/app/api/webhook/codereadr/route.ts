@@ -164,6 +164,8 @@ export async function POST(req: NextRequest) {
           ...(point !== undefined && { point }),
           ...(ticketMatch.categoria != null && { empresa: ticketMatch.categoria }),
           ...(ticketMatch.tipoBoleto != null && { pais: ticketMatch.tipoBoleto }),
+          ...(ticketMatch.telefono != null && { telefono: ticketMatch.telefono }),
+          ...(ticketMatch.email != null && { email: ticketMatch.email }),
         },
       });
 
@@ -171,7 +173,13 @@ export async function POST(req: NextRequest) {
         {
           ok: true,
           id: ticketJob.id,
-          parsed: { name: ticketMatch.nombre, categoria: ticketMatch.categoria, tipoBoleto: ticketMatch.tipoBoleto },
+          parsed: {
+            name: ticketMatch.nombre,
+            categoria: ticketMatch.categoria,
+            tipoBoleto: ticketMatch.tipoBoleto,
+            telefono: ticketMatch.telefono,
+            email: ticketMatch.email,
+          },
           source: "ticket",
           qrPreview: qrText.slice(0, 150),
         },
