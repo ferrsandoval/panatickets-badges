@@ -16,6 +16,7 @@ const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 const WEBHOOK_SECRET_SHORT = process.env.WEBHOOK_SECRET_SHORT; // token corto por si CodeREADr corta la URL
 const AUTHORIZED_POINT_BY_USER_ID: Record<string, string> = {
   "567189": "punto1",
+  "566374": "punto1",
   "256045": "punto2",
   "176281": "punto3",
   "173272": "punto3",
