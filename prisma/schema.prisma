@@ -80,3 +80,35 @@ model TicketLookup {
 
   @@map("ticket_lookup")
 }
+
+/// Configuración general de la etiqueta/expo. Fila única (singleton, id fijo
+/// "singleton") por proyecto, actualizada por upsert.
+model ExpoSettings {
+  id          String   @id
+  expoName    String?  @map("expo_name")
+  printQr     Boolean  @default(true) @map("print_qr")
+  /// JSON string[] con el orden/selección de campos a imprimir, ej.
+  /// ["name","empresa","pais","expo"]. Valores válidos: name, empresa, pais,
+  /// telefono, email, expo.
+  labelFields String?  @map("label_fields")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("expo_settings")
+}
+
+/// Puntos de impresión autorizados de esta expo (reemplaza el mapa fijo
+/// AUTHORIZED_POINT_BY_USER_ID hardcodeado en el webhook de CodeREADr).
+model PrintPoint {
+  id                String   @id @default(cuid())
+  key               String   @unique @map("key")
+  label             String   @map("label")
+  /// JSON string[] con los "User ID" de CodeREADr autorizados a escanear
+  /// hacia este punto.
+  authorizedUserIds String?  @map("authorized_user_ids")
+  sortOrder         Int      @default(0) @map("sort_order")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@map("print_points")
+}

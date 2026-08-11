@@ -99,9 +99,41 @@ export async function GET(req: NextRequest) {
     await prisma.$executeRawUnsafe(`ALTER TABLE "${s}"."ticket_lookup" ADD COLUMN IF NOT EXISTS "telefono" TEXT;`);
     await prisma.$executeRawUnsafe(`ALTER TABLE "${s}"."ticket_lookup" ADD COLUMN IF NOT EXISTS "email" TEXT;`);
 
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "${s}"."expo_settings" (
+        "id" TEXT NOT NULL,
+        "expo_name" TEXT,
+        "print_qr" BOOLEAN NOT NULL DEFAULT true,
+        "label_fields" TEXT,
+        "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "expo_settings_pkey" PRIMARY KEY ("id")
+      );
+    `);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "${s}"."expo_settings" ADD COLUMN IF NOT EXISTS "expo_name" TEXT;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "${s}"."expo_settings" ADD COLUMN IF NOT EXISTS "print_qr" BOOLEAN NOT NULL DEFAULT true;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "${s}"."expo_settings" ADD COLUMN IF NOT EXISTS "label_fields" TEXT;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "${s}"."expo_settings" ADD COLUMN IF NOT EXISTS "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;`);
+
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "${s}"."print_points" (
+        "id" TEXT NOT NULL,
+        "key" TEXT NOT NULL,
+        "label" TEXT NOT NULL,
+        "authorized_user_ids" TEXT,
+        "sort_order" INTEGER NOT NULL DEFAULT 0,
+        "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "print_points_pkey" PRIMARY KEY ("id")
+      );
+    `);
+    await prisma.$executeRawUnsafe(`
+      CREATE UNIQUE INDEX IF NOT EXISTS "print_points_key_key" ON "${s}"."print_points"("key");
+    `);
+
     return NextResponse.json({
       ok: true,
-      message: `Tablas print_jobs, qr_country_lookup y ticket_lookup creadas/actualizadas${project ? ` para el proyecto "${project}"` : " en la base por defecto"}.`,
+      message: `Tablas print_jobs, qr_country_lookup, ticket_lookup, expo_settings y print_points creadas/actualizadas${project ? ` para el proyecto "${project}"` : " en la base por defecto"}.`,
       project,
       schema,
     });

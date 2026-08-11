@@ -135,7 +135,7 @@ Invitados (5 expos), de una tacada desde los CSV del repo:
 https://TU_APP.vercel.app/api/admin/import-qr-pais-from-folder?token=TU_TOKEN
 ```
 
-Expositores (5 expos): subir a mano desde `/databases`, seleccionando cada expo, los CSV
+Expositores (5 expos): subir a mano desde `/configuraciones`, seleccionando cada expo, los CSV
 que exportaste en 0.1. Formato de 3 columnas: QR Content, País, Empresa.
 
 ### 3.4 Estadísticas BI (opcional)
@@ -160,7 +160,7 @@ El punto de impresión sale del `User ID` del dispositivo, mapeado en
 
 ## FASE 5 — Verificación
 
-1. `/databases` → cada una de las 10 expos carga sin error y con su contador de QR → país.
+1. `/configuraciones` → cada una de las 10 expos carga sin error y con su contador de QR → país.
 2. Escanear un QR real (o el `curl` de `docs/DEPLOY_PRUEBAS.md`).
 3. Aparece en la cola de `/?point=punto1`.
 4. La etiqueta sale **con país**. Si sale vacío, el lookup no encontró ese QR en el

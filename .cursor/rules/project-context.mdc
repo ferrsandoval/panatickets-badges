@@ -71,14 +71,15 @@ postgres://USER:PASSWORD@db.prisma.io:5432/postgres?sslmode=require&pool=true
   - Imprime badges usando las 5 bases de expositores.
   - Usa campos: `qr_content`, `pais`, `empresa`.
 
-- `/databases`
+- `/configuraciones` (antes `/databases`, que ahora redirige aquí)
   - Permite ver el estado de cada base (estadísticas y errores de conexión).
   - Permite subir CSV para poblar la tabla de lookup `qr_country_lookup`.
   - Muestra mensajes claros si falta una variable de entorno o si no se puede conectar a la base.
+  - Además: nombre de expo, puntos de impresión (User ID autorizados) y qué campos/orden se imprimen en la etiqueta, todo por proyecto (tablas `expo_settings` y `print_points`).
 
 - `/api/setup-db?token=...&project=...`
-  - Crea/actualiza las tablas necesarias (`print_jobs`, `qr_country_lookup`) en la base del `project` indicado.
-  - Debe llamarse **una vez por cada expo** al configurar una base nueva.
+  - Crea/actualiza las tablas necesarias (`print_jobs`, `qr_country_lookup`, `ticket_lookup`, `expo_settings`, `print_points`) en la base del `project` indicado.
+  - Debe llamarse **una vez por cada expo** al configurar una base nueva, y de nuevo tras desplegar cambios que agreguen tablas nuevas (p. ej. `expo_settings`/`print_points`).
 
 - `/api/admin/import-qr-pais-from-folder?token=...`
   - Importa varios CSV desde `data/qr-pais/` hacia las bases correspondientes.
@@ -122,7 +123,7 @@ postgres://USER:PASSWORD@db.prisma.io:5432/postgres?sslmode=require&pool=true
 3. Redeploy de la app (en Vercel) para que cargue las nuevas variables.
 4. Llamar a `/api/setup-db?token=...&project=...` para crear las tablas.
 5. Importar CSV de QR → país/empresa:
-   - Desde `/databases` subiendo un CSV, o
+   - Desde `/configuraciones` subiendo un CSV, o
    - Usando `/api/admin/import-qr-pais-from-folder?token=...` si los CSV están en `data/qr-pais/`.
 
 ## Troubleshooting conexión a la base

@@ -11,12 +11,16 @@ type PrintJob = {
   printedAt: string | null;
 };
 
-const POINTS = [
+type Point = { key: string; label: string };
+
+// Usado mientras carga /api/admin/print-points, o si esa expo todavía no
+// tiene la tabla print_points provisionada (ver /api/setup-db).
+const FALLBACK_POINTS: Point[] = [
   { key: "punto1", label: "Punto 1" },
   { key: "punto2", label: "Punto 2" },
   { key: "punto3", label: "Punto 3" },
   { key: "punto4", label: "Punto 4" },
-] as const;
+];
 
 export default function PrintQueuePage() {
   return (
@@ -32,6 +36,7 @@ function PrintQueueContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentlyPrinting, setCurrentlyPrinting] = useState<string | null>(null);
+  const [points, setPoints] = useState<Point[]>(FALLBACK_POINTS);
   const printFrameRef = useRef<HTMLIFrameElement | null>(null);
   const isPrintingRef = useRef(false);
   const currentJobRef = useRef<PrintJob | null>(null);
@@ -39,7 +44,21 @@ function PrintQueueContent() {
 
   const currentPoint = searchParams.get("point")?.trim() || null;
   const currentPointLabel =
-    POINTS.find((point) => point.key === currentPoint)?.label ?? currentPoint;
+    points.find((point) => point.key === currentPoint)?.label ?? currentPoint;
+
+  useEffect(() => {
+    fetch("/api/admin/print-points")
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((data: { points: Point[]; usingDefaults: boolean }) => {
+        // usingDefaults (no la longitud de points): así, si el admin borra
+        // todos los puntos a propósito desde /configuraciones, no se le
+        // revierte silenciosamente al fallback hardcodeado.
+        if (!data.usingDefaults) setPoints(data.points);
+      })
+      .catch(() => {
+        // deja FALLBACK_POINTS
+      });
+  }, []);
 
   const fetchJobs = async () => {
     setLoading((prev) => prev && jobs.length === 0);
@@ -226,7 +245,7 @@ function PrintQueueContent() {
             </div>
           )}
           <Link
-            href="/databases"
+            href="/configuraciones"
             style={{
               padding: "0.55rem 0.85rem",
               borderRadius: 8,
@@ -250,10 +269,10 @@ function PrintQueueContent() {
           marginBottom: "1.5rem",
         }}
       >
-        {POINTS.map((point) => (
+        {points.map((point) => (
           <Link
             key={point.key}
-            href={`/${point.key}`}
+            href={`/?point=${encodeURIComponent(point.key)}`}
             style={{
               display: "block",
               border: "1px solid #334155",

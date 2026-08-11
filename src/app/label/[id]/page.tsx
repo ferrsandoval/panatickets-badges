@@ -5,7 +5,14 @@ import { createPortal } from "react-dom";
 import QRCode from "qrcode";
 import { useParams, useSearchParams } from "next/navigation";
 import { sanitizeForPrint } from "@/lib/print-text";
+import { ALL_LABEL_FIELDS, DEFAULT_LABEL_FIELDS, type LabelFieldKey } from "@/lib/expo-settings";
 import "./label-print.css";
+
+type ExpoSettingsState = {
+  expoName: string | null;
+  printQr: boolean;
+  labelFields: LabelFieldKey[];
+};
 
 type LookupDebug = {
   qrTextPreview: string;
@@ -19,6 +26,7 @@ type Job = {
   name: string;
   empresa?: string | null;
   telefono?: string | null;
+  email?: string | null;
   pais?: string | null;
   rawPayload?: string | null;
   source?: string | null;
@@ -122,6 +130,8 @@ export default function LabelPage() {
   const searchParams = useSearchParams();
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
+  const [settings, setSettings] = useState<ExpoSettingsState | null>(null);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -139,7 +149,26 @@ export default function LabelPage() {
   }, [id, searchParams]);
 
   useEffect(() => {
-    if (!job) return;
+    const project = searchParams.get("project");
+    const url = new URL("/api/admin/expo-settings", window.location.origin);
+    if (project) url.searchParams.set("project", project);
+    fetch(url.toString())
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((data) => {
+        setSettings({
+          expoName: data.expoName ?? null,
+          printQr: data.printQr !== false,
+          labelFields: Array.isArray(data.labelFields) && data.labelFields.length > 0 ? data.labelFields : DEFAULT_LABEL_FIELDS,
+        });
+      })
+      .catch(() => setSettings(null))
+      .finally(() => setSettingsLoaded(true));
+  }, [searchParams]);
+
+  useEffect(() => {
+    // Espera también a settingsLoaded: evita imprimir con la configuración por
+    // defecto por una carrera si el fetch de settings tarda más que el de job.
+    if (!job || !settingsLoaded) return;
     const t = setTimeout(() => {
       window.print();
       // Avisa a la página que orquesta la cola (si estamos en su iframe) que
@@ -152,9 +181,13 @@ export default function LabelPage() {
       }
     }, 300);
     return () => clearTimeout(t);
-  }, [job, id]);
+  }, [job, id, settingsLoaded]);
 
   useEffect(() => {
+    if (settings && settings.printQr === false) {
+      setQrDataUrl("");
+      return;
+    }
     // Para Showare: usar acreditacion.qr si existe, sino el nombre
     let qrText = "";
     if (job?.source === "showare" && job.rawPayload?.startsWith("[showare]")) {
@@ -194,27 +227,51 @@ export default function LabelPage() {
     return () => {
       cancelled = true;
     };
-  }, [job]);
+  }, [job, settings]);
 
   if (loading) return <div className="label-page">Cargando…</div>;
   if (!job) return <div className="label-page">No encontrado</div>;
 
-  const expoLabel = getExpoLabel(searchParams.get("project"));
   const project = searchParams.get("project");
+  const expoLabel = settings?.expoName?.trim() || getExpoLabel(project);
   const fetchUrl = project ? `/api/print-jobs/${id}?project=${encodeURIComponent(project)}` : `/api/print-jobs/${id}`;
   const isShoware = job.source === "showare";
   const showareFields = isShoware ? parseShowareFields(job.rawPayload) : [];
 
-  // Render etiqueta CodeREADr (fijo)
-  const paisValue = getLabelValue(job.pais);
+  // Render etiqueta CodeREADr: campos y orden configurables desde /configuraciones
+  // (settings.labelFields), con el orden actual como valor por defecto.
   const isTicket = job.source === "ticket";
-  const codereadrLines = [
-    { text: sanitizeForPrint(getLabelValue(job.name)), className: "label-name" },
-    { text: sanitizeForPrint(getLabelValue(job.empresa)), className: "label-empresa" },
-    ...(paisValue ? [{ text: sanitizeForPrint(paisValue), className: "label-pais" }] : []),
-    // Los boletos no muestran el nombre de la expo (esa clave es solo interna, para la base de datos).
-    ...(!isTicket ? [{ text: getLabelValue(expoLabel), className: "label-expo" }] : []),
-  ];
+  const FIELD_CLASS: Record<LabelFieldKey, string> = {
+    name: "label-name",
+    empresa: "label-empresa",
+    pais: "label-pais",
+    telefono: "label-telefono",
+    email: "label-email",
+    expo: "label-expo",
+  };
+  // Igual que hoy hace país: si el valor queda vacío, la línea se omite.
+  // Nombre/empresa/expo siempre se incluyen si están seleccionados (fidelidad con el comportamiento actual).
+  const HIDE_LINE_IF_EMPTY = new Set<LabelFieldKey>(["pais", "telefono", "email"]);
+  const fieldValue = (field: LabelFieldKey): string => {
+    switch (field) {
+      case "name": return sanitizeForPrint(getLabelValue(job.name));
+      case "empresa": return sanitizeForPrint(getLabelValue(job.empresa));
+      case "pais": return sanitizeForPrint(getLabelValue(job.pais));
+      case "telefono": return sanitizeForPrint(getLabelValue(job.telefono));
+      case "email": return sanitizeForPrint(getLabelValue(job.email));
+      case "expo": return getLabelValue(expoLabel);
+    }
+  };
+  const activeFields = (settings?.labelFields?.length ? settings.labelFields : DEFAULT_LABEL_FIELDS).filter(
+    (f): f is LabelFieldKey =>
+      ALL_LABEL_FIELDS.includes(f) &&
+      // Los boletos no muestran el nombre de la expo (esa clave es solo interna, para la base de datos).
+      (f !== "expo" || !isTicket)
+  );
+  const codereadrLines = activeFields
+    .map((field) => ({ field, text: fieldValue(field) }))
+    .filter((line) => !HIDE_LINE_IF_EMPTY.has(line.field) || line.text)
+    .map((line) => ({ text: line.text, className: FIELD_CLASS[line.field] }));
 
   const debugPanel = (
     <div className="label-debug" key={`${id}-${project ?? ""}`}>

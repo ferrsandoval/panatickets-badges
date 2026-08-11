@@ -55,7 +55,7 @@ export async function GET(
   const { id } = await params;
   const { searchParams } = new URL(req.url);
   const project = searchParams.get("project");
-  type JobRow = { id: string; name: string; empresa?: string | null; telefono?: string | null; pais?: string | null; rawPayload?: string | null; source?: string | null; createdAt: Date; printedAt: Date | null };
+  type JobRow = { id: string; name: string; empresa?: string | null; telefono?: string | null; email?: string | null; pais?: string | null; rawPayload?: string | null; source?: string | null; createdAt: Date; printedAt: Date | null };
   let job: JobRow | null = null;
   let lookupDebug: LookupDebug | null = null;
 
@@ -64,7 +64,7 @@ export async function GET(
     try {
       job = await prisma.printJob.findUnique({
         where: { id },
-        select: { id: true, name: true, empresa: true, telefono: true, pais: true, rawPayload: true, source: true, createdAt: true, printedAt: true },
+        select: { id: true, name: true, empresa: true, telefono: true, email: true, pais: true, rawPayload: true, source: true, createdAt: true, printedAt: true },
       });
       if (job?.source !== "showare") job = hydrateJobFieldsFromRawPayload(job);
     } catch {
@@ -73,13 +73,13 @@ export async function GET(
           where: { id },
           select: { id: true, name: true, empresa: true, pais: true, rawPayload: true, createdAt: true, printedAt: true },
         });
-        if (job) job = hydrateJobFieldsFromRawPayload({ ...job, telefono: null, source: null });
+        if (job) job = hydrateJobFieldsFromRawPayload({ ...job, telefono: null, email: null, source: null });
       } catch {
         job = await prisma.printJob.findUnique({
           where: { id },
           select: { id: true, name: true, empresa: true, pais: true, rawPayload: true, createdAt: true, printedAt: true },
         });
-        if (job) job = hydrateJobFieldsFromRawPayload({ ...job, telefono: null, source: null });
+        if (job) job = hydrateJobFieldsFromRawPayload({ ...job, telefono: null, email: null, source: null });
       }
     }
     // El lookup QR→país solo aplica para jobs de CodeREADr
@@ -99,6 +99,7 @@ export async function GET(
     name: job.name,
     empresa: job.empresa ?? null,
     telefono: job.telefono ?? null,
+    email: job.email ?? null,
     pais: job.pais ?? null,
     rawPayload: job.rawPayload ?? null,
     source: job.source ?? null,

@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getPrismaForProject } from "@/lib/prisma";
+import { getPrintPoints } from "@/lib/print-points";
 import { qrLookupCandidates, findPaisFromLookup } from "@/lib/qr-lookup";
 import { findTicketByQrContent } from "@/lib/ticket-lookup";
 import {
@@ -44,8 +45,22 @@ function getString(obj: Record<string, unknown>, ...keys: string[]): string | nu
   return null;
 }
 
-function getPointFromAuthorizedUserId(userId: string | null): string | null {
+/**
+ * Resuelve el punto de impresión para un User ID. Si la expo ya tiene puntos
+ * configurados en print_points (vía /configuraciones), se resuelve SOLO
+ * contra esa lista — el mapa fijo queda inerte para esa expo. Si la tabla
+ * está vacía o no existe todavía (no se corrió /api/setup-db), se cae al
+ * mapa fijo, o sea comportamiento idéntico al de antes de esta función existir.
+ */
+async function getPointFromAuthorizedUserId(
+  projectPrisma: ReturnType<typeof getPrismaForProject>,
+  userId: string | null
+): Promise<string | null> {
   if (!userId) return null;
+  const dbPoints = await getPrintPoints(projectPrisma).catch(() => []);
+  if (dbPoints.length > 0) {
+    return dbPoints.find((p) => p.authorizedUserIds.includes(userId))?.key ?? null;
+  }
   return AUTHORIZED_POINT_BY_USER_ID[userId] ?? null;
 }
 
@@ -104,10 +119,12 @@ export async function POST(req: NextRequest) {
     body = Object.fromEntries(new URLSearchParams(text)) as Record<string, unknown>;
   }
 
+  const projectPrisma = getPrismaForProject(project);
+
   const scanId = getString(body, "scan_id", "scanId", "scanid", "EscanerID", "escaner_id") ?? null;
   const userId =
     getString(body, "User ID", "user_id", "userid", "userId", "UserID", "user id", "idusuario") ?? null;
-  const authorizedPoint = getPointFromAuthorizedUserId(userId);
+  const authorizedPoint = await getPointFromAuthorizedUserId(projectPrisma, userId);
   const point = authorizedPoint ?? pointFromQuery ?? undefined;
   const qrText = getQrTextFromBody(body);
 
@@ -135,8 +152,6 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
-
-  const projectPrisma = getPrismaForProject(project);
 
   // Boletos: el QR es un código de barras opaco (sin "Nombre="/"Name=" embebido).
   // Se intenta resolver por ticket_lookup ANTES de exigir el formato con pipes,
