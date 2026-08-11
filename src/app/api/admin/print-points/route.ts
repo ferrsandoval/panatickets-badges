@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPrismaForProject } from "@/lib/prisma";
 import { deletePrintPoint, getPrintPointsOrDefaults, upsertPrintPoint } from "@/lib/print-points";
-
-const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
+import { isValidConfigAdminToken } from "@/lib/admin-auth";
 
 /**
  * GET /api/admin/print-points?project=expo_logistica_2026
@@ -20,13 +19,13 @@ export async function GET(req: NextRequest) {
 }
 
 /**
- * POST /api/admin/print-points?project=expo_logistica_2026&token=WEBHOOK_SECRET
+ * POST /api/admin/print-points?project=expo_logistica_2026&token=admin123
  * Body: { key: string; label: string; authorizedUserIds: string[]; sortOrder?: number }
  * Upsert por key (alta y edición en un mismo endpoint).
  */
 export async function POST(req: NextRequest) {
   const token = req.nextUrl.searchParams.get("token");
-  if (!WEBHOOK_SECRET || token !== WEBHOOK_SECRET) {
+  if (!isValidConfigAdminToken(token)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -74,11 +73,11 @@ export async function POST(req: NextRequest) {
 }
 
 /**
- * DELETE /api/admin/print-points?project=expo_logistica_2026&token=WEBHOOK_SECRET&key=punto1
+ * DELETE /api/admin/print-points?project=expo_logistica_2026&token=admin123&key=punto1
  */
 export async function DELETE(req: NextRequest) {
   const token = req.nextUrl.searchParams.get("token");
-  if (!WEBHOOK_SECRET || token !== WEBHOOK_SECRET) {
+  if (!isValidConfigAdminToken(token)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

@@ -10,7 +10,7 @@ type DbStatsSummary = {
   qrCountryLookupCount: number;
 };
 
-export function GeneralTab({ project, adminToken }: { project: string; adminToken: string }) {
+export function GeneralTab({ project, adminPassword }: { project: string; adminPassword: string }) {
   const [stats, setStats] = useState<DbStatsSummary | null>(null);
   const [statsError, setStatsError] = useState<string | null>(null);
 
@@ -56,15 +56,15 @@ export function GeneralTab({ project, adminToken }: { project: string; adminToke
     e.preventDefault();
     setSaveError(null);
     setSaveSuccess(null);
-    if (!adminToken.trim()) {
-      setSaveError("Introduce el token de administrador arriba.");
+    if (!adminPassword.trim()) {
+      setSaveError("Introduce la contraseña de administrador arriba.");
       return;
     }
     setSaving(true);
     try {
       const url = new URL("/api/admin/expo-settings", window.location.origin);
       url.searchParams.set("project", project);
-      url.searchParams.set("token", adminToken.trim());
+      url.searchParams.set("token", adminPassword.trim());
       const res = await fetch(url.toString(), {
         method: "POST",
         headers: { "Content-Type": "application/json" },

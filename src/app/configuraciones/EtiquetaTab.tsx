@@ -13,7 +13,7 @@ const FIELD_LABELS: Record<LabelFieldKey, string> = {
   expo: "Nombre de expo",
 };
 
-export function EtiquetaTab({ project, adminToken }: { project: string; adminToken: string }) {
+export function EtiquetaTab({ project, adminPassword }: { project: string; adminPassword: string }) {
   const [loaded, setLoaded] = useState(false);
   const [printQr, setPrintQr] = useState(true);
   const [fields, setFields] = useState<LabelFieldKey[]>(DEFAULT_LABEL_FIELDS);
@@ -64,15 +64,15 @@ export function EtiquetaTab({ project, adminToken }: { project: string; adminTok
   const handleSave = async () => {
     setSaveError(null);
     setSaveSuccess(null);
-    if (!adminToken.trim()) {
-      setSaveError("Introduce el token de administrador arriba.");
+    if (!adminPassword.trim()) {
+      setSaveError("Introduce la contraseña de administrador arriba.");
       return;
     }
     setSaving(true);
     try {
       const url = new URL("/api/admin/expo-settings", window.location.origin);
       url.searchParams.set("project", project);
-      url.searchParams.set("token", adminToken.trim());
+      url.searchParams.set("token", adminPassword.trim());
       const res = await fetch(url.toString(), {
         method: "POST",
         headers: { "Content-Type": "application/json" },

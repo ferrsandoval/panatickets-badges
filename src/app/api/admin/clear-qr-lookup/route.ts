@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPrismaForProject } from "@/lib/prisma";
-
-const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
+import { isValidConfigAdminToken } from "@/lib/admin-auth";
 
 /**
- * DELETE /api/admin/clear-qr-lookup?token=WEBHOOK_SECRET&project=expo_logistica_2026
+ * DELETE /api/admin/clear-qr-lookup?token=admin123&project=expo_logistica_2026
  * Borra todas las filas de qr_country_lookup de la base del proyecto indicado.
  */
 export async function DELETE(req: NextRequest) {
   const token = req.nextUrl.searchParams.get("token");
-  if (!WEBHOOK_SECRET || token !== WEBHOOK_SECRET) {
+  if (!isValidConfigAdminToken(token)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

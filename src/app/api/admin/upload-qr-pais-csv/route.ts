@@ -2,17 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { getPrismaForProject } from "@/lib/prisma";
 import { parseCsvText } from "@/lib/csv-qr-pais";
 import { upsertQrLookupRows } from "@/lib/qr-lookup-upsert";
-
-const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
+import { isValidConfigAdminToken } from "@/lib/admin-auth";
 
 /**
- * POST /api/admin/upload-qr-pais-csv?token=WEBHOOK_SECRET&project=expo_logistica_2026
+ * POST /api/admin/upload-qr-pais-csv?token=admin123&project=expo_logistica_2026
  * Body: CSV. Proyectos invitados: 2 columnas (qr_content,pais). Proyectos expositores: 3 columnas (QR Content,País,Empresa).
  * Inserta/actualiza qr_country_lookup en la base de esa expo.
  */
 export async function POST(req: NextRequest) {
   const token = req.nextUrl.searchParams.get("token");
-  if (!WEBHOOK_SECRET || token !== WEBHOOK_SECRET) {
+  if (!isValidConfigAdminToken(token)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

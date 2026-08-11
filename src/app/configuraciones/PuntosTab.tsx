@@ -5,7 +5,7 @@ import { buttonStyle, card, colors, errorText, inputStyle, mutedText, sectionTit
 
 type PrintPoint = { key: string; label: string; authorizedUserIds: string[]; sortOrder: number };
 
-export function PuntosTab({ project, adminToken }: { project: string; adminToken: string }) {
+export function PuntosTab({ project, adminPassword }: { project: string; adminPassword: string }) {
   const [points, setPoints] = useState<PrintPoint[]>([]);
   const [provisioned, setProvisioned] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -37,7 +37,7 @@ export function PuntosTab({ project, adminToken }: { project: string; adminToken
   const savePoint = async (point: PrintPoint) => {
     const url = new URL("/api/admin/print-points", window.location.origin);
     url.searchParams.set("project", project);
-    url.searchParams.set("token", adminToken.trim());
+    url.searchParams.set("token", adminPassword.trim());
     const res = await fetch(url.toString(), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -53,8 +53,8 @@ export function PuntosTab({ project, adminToken }: { project: string; adminToken
   };
 
   const requireToken = (): boolean => {
-    if (adminToken.trim()) return true;
-    setActionError("Introduce el token de administrador arriba.");
+    if (adminPassword.trim()) return true;
+    setActionError("Introduce la contraseña de administrador arriba.");
     return false;
   };
 

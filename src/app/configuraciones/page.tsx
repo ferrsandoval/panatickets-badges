@@ -21,7 +21,7 @@ type TabKey = (typeof TABS)[number]["key"];
 
 export default function ConfiguracionesPage() {
   const [selectedProject, setSelectedProject] = useState<string>(PROJECTS[0].key);
-  const [adminToken, setAdminToken] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
   const [activeTab, setActiveTab] = useState<TabKey>("general");
 
   const currentLabel = PROJECTS.find((p) => p.key === selectedProject)?.label ?? selectedProject;
@@ -66,15 +66,15 @@ export default function ConfiguracionesPage() {
           </select>
         </div>
         <div style={{ flex: "1 1 240px", minWidth: 0 }}>
-          <label htmlFor="admin-token" style={labelStyle}>
-            Token de administrador
+          <label htmlFor="admin-password" style={labelStyle}>
+            Contraseña de administrador
           </label>
           <input
-            id="admin-token"
+            id="admin-password"
             type="password"
-            value={adminToken}
-            onChange={(e) => setAdminToken(e.target.value)}
-            placeholder="WEBHOOK_SECRET"
+            value={adminPassword}
+            onChange={(e) => setAdminPassword(e.target.value)}
+            placeholder="Contraseña"
             style={inputStyle}
           />
         </div>
@@ -102,10 +102,10 @@ export default function ConfiguracionesPage() {
         ))}
       </nav>
 
-      {activeTab === "general" && <GeneralTab project={selectedProject} adminToken={adminToken} />}
-      {activeTab === "puntos" && <PuntosTab project={selectedProject} adminToken={adminToken} />}
-      {activeTab === "etiqueta" && <EtiquetaTab project={selectedProject} adminToken={adminToken} />}
-      {activeTab === "datos" && <DatosTab project={selectedProject} currentLabel={currentLabel} adminToken={adminToken} />}
+      {activeTab === "general" && <GeneralTab project={selectedProject} adminPassword={adminPassword} />}
+      {activeTab === "puntos" && <PuntosTab project={selectedProject} adminPassword={adminPassword} />}
+      {activeTab === "etiqueta" && <EtiquetaTab project={selectedProject} adminPassword={adminPassword} />}
+      {activeTab === "datos" && <DatosTab project={selectedProject} currentLabel={currentLabel} adminPassword={adminPassword} />}
     </main>
   );
 }

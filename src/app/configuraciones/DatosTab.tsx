@@ -14,7 +14,7 @@ type PrintJobRow = {
   printedAt: string | null;
 };
 
-export function DatosTab({ project, currentLabel, adminToken }: { project: string; currentLabel: string; adminToken: string }) {
+export function DatosTab({ project, currentLabel, adminPassword }: { project: string; currentLabel: string; adminPassword: string }) {
   const [qrCountryLookup, setQrCountryLookup] = useState<QrCountryRow[]>([]);
   const [allJobs, setAllJobs] = useState<PrintJobRow[]>([]);
   const [jobsLoading, setJobsLoading] = useState(false);
@@ -64,8 +64,8 @@ export function DatosTab({ project, currentLabel, adminToken }: { project: strin
     e.preventDefault();
     setUploadError(null);
     setUploadSuccess(null);
-    if (!adminToken.trim()) {
-      setUploadError("Introduce el token de administrador arriba.");
+    if (!adminPassword.trim()) {
+      setUploadError("Introduce la contraseña de administrador arriba.");
       return;
     }
     if (!uploadFile) {
@@ -78,7 +78,7 @@ export function DatosTab({ project, currentLabel, adminToken }: { project: strin
       formData.set("file", uploadFile);
       const url = new URL("/api/admin/upload-qr-pais-csv", window.location.origin);
       url.searchParams.set("project", project);
-      url.searchParams.set("token", adminToken.trim());
+      url.searchParams.set("token", adminPassword.trim());
       const res = await fetch(url.toString(), { method: "POST", body: formData });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.detail ?? data.error ?? res.statusText);
@@ -94,8 +94,8 @@ export function DatosTab({ project, currentLabel, adminToken }: { project: strin
   };
 
   const handleClearQrLookup = async () => {
-    if (!adminToken.trim()) {
-      setClearError("Introduce el token de administrador arriba.");
+    if (!adminPassword.trim()) {
+      setClearError("Introduce la contraseña de administrador arriba.");
       return;
     }
     if (!confirm(`¿Borrar toda la tabla QR → país de "${currentLabel}"? Esta acción no se puede deshacer.`)) return;
@@ -105,7 +105,7 @@ export function DatosTab({ project, currentLabel, adminToken }: { project: strin
     try {
       const url = new URL("/api/admin/clear-qr-lookup", window.location.origin);
       url.searchParams.set("project", project);
-      url.searchParams.set("token", adminToken.trim());
+      url.searchParams.set("token", adminPassword.trim());
       const res = await fetch(url.toString(), { method: "DELETE" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.detail ?? data.error ?? res.statusText);
@@ -167,7 +167,7 @@ export function DatosTab({ project, currentLabel, adminToken }: { project: strin
         <div style={{ marginTop: "1.5rem", paddingTop: "1rem", borderTop: `1px solid ${colors.border}` }}>
           <h3 style={{ margin: "0 0 0.5rem", fontSize: "1rem" }}>Borrar base de datos (QR → país)</h3>
           <p style={mutedText}>
-            Elimina todas las filas de la tabla <strong>qr_country_lookup</strong> de esta expo. Usa el token de arriba.
+            Elimina todas las filas de la tabla <strong>qr_country_lookup</strong> de esta expo. Usa la contraseña de arriba.
           </p>
           <button type="button" onClick={handleClearQrLookup} disabled={clearLoading} style={buttonStyle({ variant: "danger", disabled: clearLoading })}>
             {clearLoading ? "Borrando…" : "Borrar base de datos (esta expo)"}
