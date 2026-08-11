@@ -13,8 +13,9 @@ type PrintJob = {
 
 type Point = { key: string; label: string };
 
-// Usado mientras carga /api/admin/print-points, o si esa expo todavía no
-// tiene la tabla print_points provisionada (ver /api/setup-db).
+// Usado solo si falla por completo el fetch a /api/admin/print-points (esa
+// ruta ya devuelve los 4 puntos con sus valores por defecto si la expo
+// todavía no guardó nada, ver DEFAULT_PRINT_POINTS en src/lib/print-points.ts).
 const FALLBACK_POINTS: Point[] = [
   { key: "punto1", label: "Punto 1" },
   { key: "punto2", label: "Punto 2" },
@@ -49,12 +50,7 @@ function PrintQueueContent() {
   useEffect(() => {
     fetch("/api/admin/print-points")
       .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((data: { points: Point[]; usingDefaults: boolean }) => {
-        // usingDefaults (no la longitud de points): así, si el admin borra
-        // todos los puntos a propósito desde /configuraciones, no se le
-        // revierte silenciosamente al fallback hardcodeado.
-        if (!data.usingDefaults) setPoints(data.points);
-      })
+      .then((data: { points: Point[] }) => setPoints(data.points))
       .catch(() => {
         // deja FALLBACK_POINTS
       });

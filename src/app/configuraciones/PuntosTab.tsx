@@ -1,23 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { buttonStyle, card, colors, errorText, inputStyle, labelStyle, mutedText, sectionTitle, warningBox } from "./styles";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { buttonStyle, card, colors, errorText, inputStyle, mutedText, sectionTitle, warningBox } from "./styles";
 
 type PrintPoint = { key: string; label: string; authorizedUserIds: string[]; sortOrder: number };
 
-const EMPTY_FORM = { key: "", label: "", userIdsText: "", sortOrder: "0" };
-
 export function PuntosTab({ project, adminToken }: { project: string; adminToken: string }) {
   const [points, setPoints] = useState<PrintPoint[]>([]);
-  const [usingDefaults, setUsingDefaults] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [provisioned, setProvisioned] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
-
-  const [editingKey, setEditingKey] = useState<string | null>(null);
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [deletingKey, setDeletingKey] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [newIdText, setNewIdText] = useState<Record<string, string>>({});
+  const dragRef = useRef<{ userId: string; fromKey: string } | null>(null);
 
   const fetchPoints = useCallback(() => {
     setLoading(true);
@@ -26,9 +22,9 @@ export function PuntosTab({ project, adminToken }: { project: string; adminToken
     url.searchParams.set("project", project);
     fetch(url.toString())
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(r.statusText))))
-      .then((data: { points: PrintPoint[]; usingDefaults: boolean }) => {
+      .then((data: { points: PrintPoint[]; provisioned: boolean }) => {
         setPoints(data.points);
-        setUsingDefaults(data.usingDefaults);
+        setProvisioned(data.provisioned);
       })
       .catch((e) => setListError(e instanceof Error ? e.message : String(e)))
       .finally(() => setLoading(false));
@@ -38,216 +34,198 @@ export function PuntosTab({ project, adminToken }: { project: string; adminToken
     fetchPoints();
   }, [fetchPoints]);
 
-  const startNew = () => {
-    setEditingKey(null);
-    setForm(EMPTY_FORM);
-    setSaveError(null);
-  };
-
-  const startEdit = (point: PrintPoint) => {
-    setEditingKey(point.key);
-    setForm({
-      key: point.key,
-      label: point.label,
-      userIdsText: point.authorizedUserIds.join("\n"),
-      sortOrder: String(point.sortOrder),
+  const savePoint = async (point: PrintPoint) => {
+    const url = new URL("/api/admin/print-points", window.location.origin);
+    url.searchParams.set("project", project);
+    url.searchParams.set("token", adminToken.trim());
+    const res = await fetch(url.toString(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        key: point.key,
+        label: point.label,
+        authorizedUserIds: point.authorizedUserIds,
+        sortOrder: point.sortOrder,
+      }),
     });
-    setSaveError(null);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.detail ?? data.error ?? res.statusText);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaveError(null);
-    if (!adminToken.trim()) {
-      setSaveError("Introduce el token de administrador arriba.");
-      return;
-    }
-    if (!form.key.trim() || !form.label.trim()) {
-      setSaveError("La clave y la etiqueta son obligatorias.");
-      return;
-    }
-    setSaving(true);
+  const requireToken = (): boolean => {
+    if (adminToken.trim()) return true;
+    setActionError("Introduce el token de administrador arriba.");
+    return false;
+  };
+
+  const moveUserId = async (userId: string, fromKey: string, toKey: string) => {
+    if (fromKey === toKey || !requireToken()) return;
+    const fromPoint = points.find((p) => p.key === fromKey);
+    const toPoint = points.find((p) => p.key === toKey);
+    if (!fromPoint || !toPoint) return;
+    setActionError(null);
+    setBusy(true);
     try {
-      const url = new URL("/api/admin/print-points", window.location.origin);
-      url.searchParams.set("project", project);
-      url.searchParams.set("token", adminToken.trim());
-      const res = await fetch(url.toString(), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          key: form.key.trim(),
-          label: form.label.trim(),
-          authorizedUserIds: form.userIdsText.split("\n").map((v) => v.trim()).filter(Boolean),
-          sortOrder: Number(form.sortOrder) || 0,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.detail ?? data.error ?? res.statusText);
-      startNew();
+      await savePoint({ ...fromPoint, authorizedUserIds: fromPoint.authorizedUserIds.filter((id) => id !== userId) });
+      await savePoint({ ...toPoint, authorizedUserIds: [...toPoint.authorizedUserIds, userId] });
       fetchPoints();
     } catch (e) {
-      setSaveError(e instanceof Error ? e.message : String(e));
+      setActionError(e instanceof Error ? e.message : String(e));
     } finally {
-      setSaving(false);
+      setBusy(false);
     }
   };
 
-  const handleDelete = async (key: string) => {
-    if (!adminToken.trim()) {
-      setSaveError("Introduce el token de administrador arriba.");
-      return;
-    }
-    if (!confirm(`¿Borrar el punto "${key}"? Los dispositivos con este punto dejarán de estar autorizados.`)) return;
-    setDeletingKey(key);
+  const handleAddId = async (pointKey: string) => {
+    const id = (newIdText[pointKey] ?? "").trim();
+    if (!id || !requireToken()) return;
+    setActionError(null);
+    setBusy(true);
     try {
-      const url = new URL("/api/admin/print-points", window.location.origin);
-      url.searchParams.set("project", project);
-      url.searchParams.set("token", adminToken.trim());
-      url.searchParams.set("key", key);
-      const res = await fetch(url.toString(), { method: "DELETE" });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.detail ?? data.error ?? res.statusText);
-      if (editingKey === key) startNew();
+      // Un User ID solo debería estar asignado a un punto: si ya está en otro,
+      // se mueve en vez de quedar duplicado (ambiguo para el webhook).
+      const existingElsewhere = points.find((p) => p.key !== pointKey && p.authorizedUserIds.includes(id));
+      if (existingElsewhere) {
+        await savePoint({ ...existingElsewhere, authorizedUserIds: existingElsewhere.authorizedUserIds.filter((v) => v !== id) });
+      }
+      const target = points.find((p) => p.key === pointKey);
+      if (target && !target.authorizedUserIds.includes(id)) {
+        await savePoint({ ...target, authorizedUserIds: [...target.authorizedUserIds, id] });
+      }
+      setNewIdText((prev) => ({ ...prev, [pointKey]: "" }));
       fetchPoints();
     } catch (e) {
-      setSaveError(e instanceof Error ? e.message : String(e));
+      setActionError(e instanceof Error ? e.message : String(e));
     } finally {
-      setDeletingKey(null);
+      setBusy(false);
+    }
+  };
+
+  const handleRemoveId = async (pointKey: string, userId: string) => {
+    if (!requireToken()) return;
+    const point = points.find((p) => p.key === pointKey);
+    if (!point) return;
+    setActionError(null);
+    setBusy(true);
+    try {
+      await savePoint({ ...point, authorizedUserIds: point.authorizedUserIds.filter((v) => v !== userId) });
+      fetchPoints();
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
     }
   };
 
   return (
-    <>
-      {usingDefaults && (
-        <section style={warningBox}>
-          <strong>Sin provisionar.</strong> Esta expo todavía no tiene la tabla de puntos de impresión (o está vacía). Mientras
-          tanto, el webhook usa el mapa fijo de User ID → punto que ya existe en el código. En cuanto agregues el primer punto
-          aquí, ese mapa deja de usarse para esta expo.
-        </section>
+    <section style={card}>
+      <h2 style={sectionTitle}>Puntos de impresión</h2>
+      <p style={mutedText}>
+        Arrastra un User ID de CodeREADr entre puntos para reasignarlo de dispositivo, o agrégalo directo en el punto que
+        corresponda.
+      </p>
+
+      {!provisioned && (
+        <div style={{ ...warningBox, marginBottom: "1rem" }}>
+          Esta expo todavía no guardó cambios aquí — se muestra la asignación actual. En cuanto agregues o muevas un User ID
+          se guarda en la base de datos.
+        </div>
       )}
 
-      <section style={card}>
-        <h2 style={sectionTitle}>{editingKey ? `Editar punto "${editingKey}"` : "Agregar punto de impresión"}</h2>
-        <p style={mutedText}>
-          Cada dispositivo CodeREADr envía su &quot;User ID&quot;. Un punto puede tener varios User ID autorizados (uno por
-          línea).
-        </p>
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", alignItems: "flex-start" }}>
-          <div style={{ flex: "1 1 140px", minWidth: 0 }}>
-            <label style={labelStyle}>Clave (key)</label>
-            <input
-              value={form.key}
-              onChange={(e) => setForm((f) => ({ ...f, key: e.target.value }))}
-              placeholder="punto5"
-              disabled={editingKey !== null}
-              style={inputStyle}
-            />
-          </div>
-          <div style={{ flex: "1 1 160px", minWidth: 0 }}>
-            <label style={labelStyle}>Etiqueta</label>
-            <input
-              value={form.label}
-              onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
-              placeholder="Punto 5"
-              style={inputStyle}
-            />
-          </div>
-          <div style={{ flex: "1 1 90px", minWidth: 0 }}>
-            <label style={labelStyle}>Orden</label>
-            <input
-              type="number"
-              value={form.sortOrder}
-              onChange={(e) => setForm((f) => ({ ...f, sortOrder: e.target.value }))}
-              style={inputStyle}
-            />
-          </div>
-          <div style={{ flex: "1 1 220px", minWidth: 0 }}>
-            <label style={labelStyle}>User ID autorizados (uno por línea)</label>
-            <textarea
-              value={form.userIdsText}
-              onChange={(e) => setForm((f) => ({ ...f, userIdsText: e.target.value }))}
-              placeholder={"567189\n566374"}
-              rows={2}
-              style={{ ...inputStyle, resize: "vertical", fontFamily: "monospace" }}
-            />
-          </div>
-          <div style={{ display: "flex", gap: "0.5rem", alignItems: "flex-end", paddingBottom: "0.1rem" }}>
-            <button type="submit" disabled={saving} style={buttonStyle({ disabled: saving })}>
-              {saving ? "Guardando…" : editingKey ? "Guardar cambios" : "Agregar"}
-            </button>
-            {editingKey && (
-              <button type="button" onClick={startNew} style={buttonStyle({ variant: "ghost" })}>
-                Cancelar
-              </button>
-            )}
-          </div>
-        </form>
-        {saveError && <p style={errorText}>{saveError}</p>}
-      </section>
+      {listError && <p style={errorText}>{listError}</p>}
+      {actionError && <p style={errorText}>{actionError}</p>}
 
-      <section style={{ ...card, overflow: "hidden", padding: 0 }}>
-        <h2 style={{ ...sectionTitle, padding: "1rem", margin: 0, borderBottom: `1px solid ${colors.border}` }}>
-          Puntos configurados
-        </h2>
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
-            <thead style={{ background: colors.bgAlt }}>
-              <tr style={{ color: colors.textMuted }}>
-                <th style={{ textAlign: "left", padding: "0.6rem 0.75rem" }}>Clave</th>
-                <th style={{ textAlign: "left", padding: "0.6rem 0.75rem" }}>Etiqueta</th>
-                <th style={{ textAlign: "left", padding: "0.6rem 0.75rem" }}>User ID autorizados</th>
-                <th style={{ textAlign: "right", padding: "0.6rem 0.75rem" }}>Orden</th>
-                <th style={{ textAlign: "right", padding: "0.6rem 0.75rem" }}>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={5} style={{ padding: "1.5rem", color: colors.textDim }}>
-                    Cargando…
-                  </td>
-                </tr>
-              ) : listError ? (
-                <tr>
-                  <td colSpan={5} style={{ padding: "1.5rem", color: colors.danger }}>
-                    {listError}
-                  </td>
-                </tr>
-              ) : points.length === 0 ? (
-                <tr>
-                  <td colSpan={5} style={{ padding: "1.5rem", color: colors.textDim }}>
-                    No hay puntos configurados. Se usa el mapa fijo del código como respaldo.
-                  </td>
-                </tr>
-              ) : (
-                points.map((p) => (
-                  <tr key={p.key} style={{ borderTop: `1px solid ${colors.bgAlt}` }}>
-                    <td style={{ padding: "0.6rem 0.75rem", color: colors.text, fontFamily: "monospace" }}>{p.key}</td>
-                    <td style={{ padding: "0.6rem 0.75rem", color: colors.text }}>{p.label}</td>
-                    <td style={{ padding: "0.6rem 0.75rem", color: colors.textMuted, fontFamily: "monospace", fontSize: "0.8rem" }}>
-                      {p.authorizedUserIds.length > 0 ? p.authorizedUserIds.join(", ") : "—"}
-                    </td>
-                    <td style={{ padding: "0.6rem 0.75rem", color: colors.textMuted, textAlign: "right" }}>{p.sortOrder}</td>
-                    <td style={{ padding: "0.6rem 0.75rem", textAlign: "right", whiteSpace: "nowrap" }}>
-                      <button type="button" onClick={() => startEdit(p)} style={{ ...buttonStyle({ variant: "ghost" }), marginRight: "0.4rem" }}>
-                        Editar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(p.key)}
-                        disabled={deletingKey === p.key}
-                        style={buttonStyle({ variant: "danger", disabled: deletingKey === p.key })}
-                      >
-                        {deletingKey === p.key ? "Borrando…" : "Borrar"}
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      {loading ? (
+        <p style={{ color: colors.textDim, fontSize: "0.9rem" }}>Cargando…</p>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "0.75rem" }}>
+          {points.map((point) => (
+            <div
+              key={point.key}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                const drag = dragRef.current;
+                dragRef.current = null;
+                if (drag) moveUserId(drag.userId, drag.fromKey, point.key);
+              }}
+              style={{
+                border: `1px solid ${colors.border}`,
+                borderRadius: 10,
+                padding: "0.75rem",
+                background: colors.bgAlt,
+                minHeight: 150,
+              }}
+            >
+              <h3 style={{ margin: "0 0 0.6rem", fontSize: "0.95rem", color: colors.text }}>{point.label}</h3>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginBottom: "0.6rem", minHeight: "1.6rem" }}>
+                {point.authorizedUserIds.length === 0 && (
+                  <span style={{ fontSize: "0.8rem", color: colors.textDim }}>Sin dispositivos</span>
+                )}
+                {point.authorizedUserIds.map((userId) => (
+                  <span
+                    key={userId}
+                    draggable
+                    onDragStart={() => {
+                      dragRef.current = { userId, fromKey: point.key };
+                    }}
+                    title="Arrastra para mover a otro punto"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "0.35rem",
+                      padding: "0.25rem 0.5rem",
+                      borderRadius: 999,
+                      border: `1px solid ${colors.borderLight}`,
+                      background: colors.bgDeep,
+                      color: colors.text,
+                      fontSize: "0.8rem",
+                      fontFamily: "monospace",
+                      cursor: "grab",
+                    }}
+                  >
+                    {userId}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveId(point.key, userId)}
+                      disabled={busy}
+                      aria-label={`Quitar ${userId} de ${point.label}`}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: colors.danger,
+                        cursor: busy ? "not-allowed" : "pointer",
+                        padding: 0,
+                        fontSize: "0.9rem",
+                        lineHeight: 1,
+                      }}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleAddId(point.key);
+                }}
+                style={{ display: "flex", gap: "0.4rem" }}
+              >
+                <input
+                  value={newIdText[point.key] ?? ""}
+                  onChange={(e) => setNewIdText((prev) => ({ ...prev, [point.key]: e.target.value }))}
+                  placeholder="Nuevo User ID"
+                  style={{ ...inputStyle, padding: "0.35rem 0.5rem", fontSize: "0.8rem" }}
+                />
+                <button type="submit" disabled={busy} style={buttonStyle({ variant: "ghost", disabled: busy })}>
+                  Agregar
+                </button>
+              </form>
+            </div>
+          ))}
         </div>
-      </section>
-    </>
+      )}
+    </section>
   );
 }

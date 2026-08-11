@@ -1,25 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPrismaForProject } from "@/lib/prisma";
-import { deletePrintPoint, getPrintPoints, upsertPrintPoint } from "@/lib/print-points";
+import { deletePrintPoint, getPrintPointsOrDefaults, upsertPrintPoint } from "@/lib/print-points";
 
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 
 /**
  * GET /api/admin/print-points?project=expo_logistica_2026
- * Lectura pública (sin token): la usan la home (nav de puntos) y el webhook
- * de CodeREADr para resolver el punto por User ID. Si la tabla no existe
- * todavía, devuelve usingDefaults:true para que el llamador sepa que debe
- * usar su propio fallback en vez de asumir que el admin borró todo a propósito.
+ * Lectura pública (sin token): la usan la home (nav de puntos), /configuraciones
+ * y el webhook de CodeREADr para resolver el punto por User ID. Siempre
+ * devuelve los 4 puntos fijos (ver DEFAULT_PRINT_POINTS), usando lo guardado
+ * en la base si existe. `provisioned:false` es solo informativo (la tabla
+ * print_points no existe todavía en esa expo).
  */
 export async function GET(req: NextRequest) {
   const project = req.nextUrl.searchParams.get("project")?.trim() || undefined;
   const prisma = getPrismaForProject(project);
-  try {
-    const points = await getPrintPoints(prisma);
-    return NextResponse.json({ project: project ?? null, points, usingDefaults: false });
-  } catch {
-    return NextResponse.json({ project: project ?? null, points: [], usingDefaults: true });
-  }
+  const { points, provisioned } = await getPrintPointsOrDefaults(prisma);
+  return NextResponse.json({ project: project ?? null, points, provisioned });
 }
 
 /**

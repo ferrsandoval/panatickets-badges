@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getPrismaForProject } from "@/lib/prisma";
-import { getPrintPoints } from "@/lib/print-points";
+import { getPrintPointsOrDefaults } from "@/lib/print-points";
 import { qrLookupCandidates, findPaisFromLookup } from "@/lib/qr-lookup";
 import { findTicketByQrContent } from "@/lib/ticket-lookup";
 import {
@@ -15,14 +15,6 @@ import {
 
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 const WEBHOOK_SECRET_SHORT = process.env.WEBHOOK_SECRET_SHORT; // token corto por si CodeREADr corta la URL
-const AUTHORIZED_POINT_BY_USER_ID: Record<string, string> = {
-  "567189": "punto1",
-  "566374": "punto1",
-  "256045": "punto2",
-  "176281": "punto3",
-  "173272": "punto3",
-  "256044": "punto4",
-};
 
 function getToken(req: NextRequest): string | null {
   const auth = req.headers.get("authorization");
@@ -46,22 +38,18 @@ function getString(obj: Record<string, unknown>, ...keys: string[]): string | nu
 }
 
 /**
- * Resuelve el punto de impresión para un User ID. Si la expo ya tiene puntos
- * configurados en print_points (vía /configuraciones), se resuelve SOLO
- * contra esa lista — el mapa fijo queda inerte para esa expo. Si la tabla
- * está vacía o no existe todavía (no se corrió /api/setup-db), se cae al
- * mapa fijo, o sea comportamiento idéntico al de antes de esta función existir.
+ * Resuelve el punto de impresión para un User ID contra los 4 puntos fijos:
+ * usa lo guardado en print_points (vía /configuraciones) para cada punto, o
+ * su asignación por defecto (DEFAULT_PRINT_POINTS) si esa expo todavía no
+ * guardó nada para ese punto en particular.
  */
 async function getPointFromAuthorizedUserId(
   projectPrisma: ReturnType<typeof getPrismaForProject>,
   userId: string | null
 ): Promise<string | null> {
   if (!userId) return null;
-  const dbPoints = await getPrintPoints(projectPrisma).catch(() => []);
-  if (dbPoints.length > 0) {
-    return dbPoints.find((p) => p.authorizedUserIds.includes(userId))?.key ?? null;
-  }
-  return AUTHORIZED_POINT_BY_USER_ID[userId] ?? null;
+  const { points } = await getPrintPointsOrDefaults(projectPrisma);
+  return points.find((p) => p.authorizedUserIds.includes(userId))?.key ?? null;
 }
 
 /** Obtiene el texto del QR desde el body; acepta claves conocidas y busca cualquier valor que parezca formato Nombre='...'|... */
