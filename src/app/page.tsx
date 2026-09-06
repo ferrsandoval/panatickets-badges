@@ -44,17 +44,21 @@ function PrintQueueContent() {
   const markPrintedTimeoutRef = useRef<number | null>(null);
 
   const currentPoint = searchParams.get("point")?.trim() || null;
+  const currentProject = searchParams.get("project")?.trim() || null;
+  const currentEvento = searchParams.get("evento")?.trim() || null;
   const currentPointLabel =
     points.find((point) => point.key === currentPoint)?.label ?? currentPoint;
 
   useEffect(() => {
-    fetch("/api/admin/print-points")
+    const url = new URL("/api/admin/print-points", window.location.origin);
+    if (currentProject) url.searchParams.set("project", currentProject);
+    fetch(url.toString())
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((data: { points: Point[] }) => setPoints(data.points))
       .catch(() => {
         // deja FALLBACK_POINTS
       });
-  }, []);
+  }, [currentProject]);
 
   const fetchJobs = async () => {
     setLoading((prev) => prev && jobs.length === 0);
@@ -64,6 +68,12 @@ function PrintQueueContent() {
       url.searchParams.set("printed", "false");
       if (currentPoint) {
         url.searchParams.set("point", currentPoint);
+      }
+      if (currentProject) {
+        url.searchParams.set("project", currentProject);
+      }
+      if (currentEvento) {
+        url.searchParams.set("evento", currentEvento);
       }
       const res = await fetch(url.toString());
       if (!res.ok) throw new Error(res.statusText);
@@ -85,13 +95,16 @@ function PrintQueueContent() {
         window.clearTimeout(markPrintedTimeoutRef.current);
       }
     };
-  }, [currentPoint]);
+  }, [currentPoint, currentProject, currentEvento]);
 
   const markPrinted = async (id: string) => {
     try {
       const url = new URL(`/api/print-jobs/${id}`, window.location.origin);
       if (currentPoint) {
         url.searchParams.set("point", currentPoint);
+      }
+      if (currentProject) {
+        url.searchParams.set("project", currentProject);
       }
       const res = await fetch(url.toString(), {
         method: "PATCH",
@@ -157,8 +170,11 @@ function PrintQueueContent() {
     if (currentPoint) {
       labelUrl.searchParams.set("point", currentPoint);
     }
+    if (currentProject) {
+      labelUrl.searchParams.set("project", currentProject);
+    }
     printFrameRef.current.src = labelUrl.toString();
-  }, [currentPoint, jobs]);
+  }, [currentPoint, currentProject, jobs]);
 
   const handlePrintFrameLoad = () => {
     const currentJob = currentJobRef.current;

@@ -64,6 +64,10 @@ export async function GET(req: NextRequest) {
     await prisma.$executeRawUnsafe(`ALTER TABLE "${s}"."print_jobs" ADD COLUMN IF NOT EXISTS "telefono" TEXT;`);
     await prisma.$executeRawUnsafe(`ALTER TABLE "${s}"."print_jobs" ADD COLUMN IF NOT EXISTS "email" TEXT;`);
     await prisma.$executeRawUnsafe(`ALTER TABLE "${s}"."print_jobs" ADD COLUMN IF NOT EXISTS "source" TEXT;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "${s}"."print_jobs" ADD COLUMN IF NOT EXISTS "evento_id" TEXT;`);
+    await prisma.$executeRawUnsafe(`
+      CREATE INDEX IF NOT EXISTS "print_jobs_evento_id_idx" ON "${s}"."print_jobs"("evento_id");
+    `);
 
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "${s}"."qr_country_lookup" (

@@ -16,6 +16,10 @@ model PrintJob {
   empresa     String?   @map("empresa")
   pais        String?   @map("pais")
   feria       String?   @map("feria")
+  /// ID del evento tal como lo manda Showare (evento_id). Permite filtrar la
+  /// cola de impresión por evento dentro de la base compartida "showare",
+  /// ya que los eventos de Showare son dinámicos (no tienen base propia).
+  eventoId    String?   @map("evento_id")
   telefono    String?   @map("telefono")
   email       String?   @map("email")
   rawPayload  String?   @map("raw_payload")
@@ -24,6 +28,7 @@ model PrintJob {
   createdAt   DateTime  @default(now()) @map("created_at")
 
   @@index([point, printedAt, createdAt])
+  @@index([eventoId])
   @@map("print_jobs")
 }
 

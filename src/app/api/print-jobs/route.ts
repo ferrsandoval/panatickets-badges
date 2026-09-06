@@ -8,30 +8,32 @@ export async function GET(req: Request) {
   const onlyPending = !allJobs && printedParam !== "true";
   const project = searchParams.get("project");
   const point = searchParams.get("point")?.trim() || null;
+  const evento = searchParams.get("evento")?.trim() || null;
   const limitRaw = Math.min(5000, Math.max(1, parseInt(searchParams.get("limit") ?? "1000", 10) || 1000));
 
   try {
     const prisma = getPrismaForProject(project);
-    const where =
-      point
-        ? undefined
-        : allJobs
-          ? {}
-          : onlyPending
-            ? { printedAt: null }
-            : { printedAt: { not: null } };
+    const printedFilter = allJobs ? {} : onlyPending ? { printedAt: null } : { printedAt: { not: null } };
+    const where = point ? undefined : { ...printedFilter, ...(evento ? { eventoId: evento } : {}) };
 
     let jobs: Array<{ id: string; name: string; empresa: string | null; telefono: string | null; email: string | null; pais: string | null; createdAt: Date; printedAt: Date | null }>;
     if (point) {
+      // Los jobs de CodeREADr solo llevan el punto codificado como prefijo
+      // "[point:X]" en rawPayload (comportamiento histórico); los de Showare
+      // sí guardan el punto en la columna `point`. Se aceptan ambos.
       const fallbackJobs = await prisma.printJob.findMany({
-        where: onlyPending ? { printedAt: null } : allJobs ? {} : { printedAt: { not: null } },
+        where: { ...printedFilter, ...(evento ? { eventoId: evento } : {}) },
         orderBy: [{ printedAt: "asc" }, { createdAt: "desc" }],
         take: allJobs ? limitRaw : undefined,
-        select: { id: true, name: true, empresa: true, telefono: true, email: true, pais: true, createdAt: true, printedAt: true, rawPayload: true },
+        select: { id: true, name: true, empresa: true, telefono: true, email: true, pais: true, createdAt: true, printedAt: true, rawPayload: true, point: true },
       });
       jobs = fallbackJobs
-        .filter((job) => typeof job.rawPayload === "string" && job.rawPayload.startsWith(`[point:${point}]`))
-        .map(({ rawPayload: _rawPayload, ...job }) => job);
+        .filter(
+          (job) =>
+            job.point === point ||
+            (typeof job.rawPayload === "string" && job.rawPayload.startsWith(`[point:${point}]`))
+        )
+        .map(({ rawPayload: _rawPayload, point: _point, ...job }) => job);
     } else {
       jobs = await prisma.printJob.findMany({
         where,
